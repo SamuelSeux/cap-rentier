@@ -2299,6 +2299,11 @@ function analyserAnnonce() {
     alert('Colle le texte de l\'annonce avant d\'analyser.');
     return;
   }
+  // Reset previous results
+  document.getElementById('annonceResult').style.display = 'none';
+  const lp = document.getElementById('annonceLotsPreview');
+  if (lp) { lp.style.display = 'none'; lp.innerHTML = ''; }
+  document.getElementById('annonceFields').innerHTML = '';
 
   const data = parseAnnonce(text);
   _annonceData = data;
@@ -2616,25 +2621,17 @@ function importerAnnonce() {
       strategie: 'LMNP', statut: 'prospect',
       desc: notes, biens: [], createdAt: Date.now()
     };
-    // Pre-fill the acquisition data
-    pf.data = {
-      acq: { prixAchat: prix, fraisNotaire: 7.5, apport: 0 },
-      emp: { montant: Math.round(prix * 0.85), taux: 3.8, duree: 20, assurance: 0.12 },
-      travauxPC: [], lots: type === 'immeuble' ? [] : null,
-      loc: {
-        loyer: loyer || 0, charges: charges || 0,
-        tauxOcc: 92, revalo: 1.5, fraisGestion: 0,
-        taxeFonciere: taxeFonciere || 0, pno: 0, copro: charges || 0,
-        loyerBas: 0, loyerHaut: 0, occBas: 80, occHaut: 98
-      },
-      fiscal: { regime: 'nu' }
-    };
+    // Store acquisition info at portfolio level
+    pf.prixAchat = prix;
+    pf.fraisNotaire = 7.5;
+    pf.apport = 0;
+    pf.empruntMontant = Math.round(prix * 0.85);
     S.portfolios.push(pf);
     S.openPids[pf.id] = true;
     pf.lienAnnonce = getFieldVal('lienAnnonce');
     S.activePid = pf.id;
     S.activeBid = null;
-    S.activeTab = 'acquisition';
+    S.activeTab = 'synthese';
 
     // Create lots from parsed data
     if (!pf.data) pf.data = defaultData(type);
@@ -2673,27 +2670,44 @@ function importerAnnonce() {
     // Add as a lot to existing portfolio
     const pf = S.portfolios.find(p => p.id === pfTarget);
     if (!pf) return;
-    const lot = {
-      id: uid(), nom, type,
-      surface, loyer: loyer || 0, charges: charges || 0,
-      statut: loyer > 0 ? 'loue' : 'vacant',
-      locataire: '', dateEntree: '', depotGarantie: 0,
-      loyerApresTravaux: 0, notes,
-      travaux: [], _open: false,
-      anneeConstr, dpe, etage,
-      data: defaultData(type)
-    };
-    lot.data.acq.prixAchat = prix;
-    lot.data.loc.loyer = loyer || 0;
-    lot.data.loc.taxeFonciere = taxeFonciere || 0;
-    lot.data.loc.copro = charges || 0;
-    pf.biens.push(lot);
-    S.activePid = pf.id;
-    S.activeBid = lot.id;
-    S.activeTab = 'synthese';
+    if (!pf.data) pf.data = defaultData(pf.type || 'immeuble');
+    if (!pf.data.lots) pf.data.lots = [];
+    if (_annonceData.lots && _annonceData.lots.length > 0) {
+      _annonceData.lots.forEach((lotDef, i) => {
+        const lot = {
+          id: uid(), nom: lotDef.nom || `Lot ${i+1}`,
+          type: lotDef.type || 'T2', surface: lotDef.surface || 0,
+          loyer: lotDef.loyer || 0, charges: lotDef.charges || 0,
+          statut: lotDef.statut || 'vacant',
+          locataire: '', dateEntree: '', depotGarantie: 0,
+          loyerApresTravaux: 0, notes: '', travaux: [], _open: false
+        };
+        pf.data.lots.push(lot); pf.biens.push(lot);
+      });
+      S.activePid = pf.id; S.activeBid = null; S.activeTab = 'synthese';
+    } else {
+      const lot = {
+        id: uid(), nom, type, surface,
+        loyer: loyer || 0, charges: charges || 0,
+        statut: loyer > 0 ? 'loue' : 'vacant',
+        locataire: '', dateEntree: '', depotGarantie: 0,
+        loyerApresTravaux: 0, notes, travaux: [], _open: false,
+        data: defaultData(type)
+      };
+      if (lot.data) { lot.data.acq.prixAchat = prix; lot.data.loc.loyer = loyer || 0; }
+      pf.biens.push(lot);
+      S.activePid = pf.id; S.activeBid = lot.id; S.activeTab = 'synthese';
+    }
   }
 
   save();
+  _annonceData = {};
+  // Reset modal for next use
+  const at = document.getElementById('annonceText');
+  if (at) at.value = '';
+  document.getElementById('annonceResult').style.display = 'none';
+  const lp = document.getElementById('annonceLotsPreview');
+  if (lp) { lp.style.display = 'none'; lp.innerHTML = ''; }
   closeMo('moImportAnnonce');
   render();
 

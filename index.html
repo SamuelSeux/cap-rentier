@@ -2642,9 +2642,9 @@ function analyserAnnonce() {
     const hasDesc = /immeuble|appartement|studio|T\d|local|loué|revenu/i.test(document.getElementById('annonceText').value);
     let msg = '';
     if (!hasDesc || textLen < 500) {
-      msg = '<div class="alert a-warn" style="font-size:11px">⚠️ Le texte semble incomplet. Sur LBC, cliquez sur <strong>"Voir plus"</strong> dans la description pour l'afficher entièrement, puis refaites Ctrl+A → Ctrl+C → Coller ici.</div>';
+      msg = "<div class='alert a-warn' style='font-size:11px'>Texte incomplet ? Sur LBC, cliquez \"Voir plus\" dans la description, puis Ctrl+A → Ctrl+C → Coller ici.</div>";
     } else {
-      msg = '<div class="alert a-info" style="font-size:11px">ℹ️ Aucun lot détecté automatiquement. Vous pourrez les ajouter manuellement dans l'onglet Lots après import.</div>';
+      msg = "<div class='alert a-info' style='font-size:11px'>Aucun lot détecté automatiquement. Ajoutez-les dans l'onglet Lots après import.</div>";
     }
     lotsPreviewEl.innerHTML = msg;
     lotsPreviewEl.style.display = 'block';

@@ -413,6 +413,10 @@ body.dark .artisan-card.selected{background:#1A2E22}
   </div>
   <div class="sb-list" id="sbList"></div>
   <div class="sb-foot">
+    <button class="btn-sm" style="color:var(--green);border-color:var(--green);font-weight:600" onclick="openImportAnnonce()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M17 8l-5-5-5 5"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Importer annonce LBC
+    </button>
     <button class="btn-sm" onclick="exportJSON()">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       Sauvegarder JSON
@@ -2265,6 +2269,340 @@ document.body.classList.toggle('dark', S.dark);
 render();
 
 // ═══════════════════════════════════════════
+// IMPORT ANNONCE
+// ═══════════════════════════════════════════
+
+// Extracted data stored here during analysis
+let _annonceData = {};
+
+function openImportAnnonce() {
+  closeSidebar();
+  // Populate portfolio selector
+  const sel = document.getElementById('annoncePfTarget');
+  if (sel) {
+    sel.innerHTML = '<option value="new">+ Créer un nouvel immeuble</option>' +
+      S.portfolios.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  }
+  document.getElementById('annonceResult').style.display = 'none';
+  document.getElementById('moImportAnnonce').classList.add('open');
+}
+
+function analyserAnnonce() {
+  const text = document.getElementById('annonceText').value.trim();
+  if (!text || text.length < 20) {
+    alert('Colle le texte de l\'annonce avant d\'analyser.');
+    return;
+  }
+
+  const data = parseAnnonce(text);
+  _annonceData = data;
+
+  // Build fields display
+  const fields = [
+    { key: 'nom',          label: 'Nom / Titre',          type: 'text',   val: data.nom },
+    { key: 'type',         label: 'Type de bien',          type: 'select', val: data.type,
+      opts: ['appartement','maison','immeuble','local','terrain'] },
+    { key: 'surface',      label: 'Surface (m²)',          type: 'number', val: data.surface },
+    { key: 'nbPieces',     label: 'Nombre de pièces',      type: 'number', val: data.nbPieces },
+    { key: 'prix',         label: 'Prix d\'achat (€)',     type: 'number', val: data.prix },
+    { key: 'adresse',      label: 'Adresse',               type: 'text',   val: data.adresse },
+    { key: 'ville',        label: 'Ville',                 type: 'text',   val: data.ville },
+    { key: 'cp',           label: 'Code postal',           type: 'text',   val: data.cp },
+    { key: 'anneeConstr',  label: 'Année de construction', type: 'number', val: data.anneeConstr },
+    { key: 'charges',      label: 'Charges copro (€/mois)',type: 'number', val: data.charges },
+    { key: 'taxeFonciere', label: 'Taxe foncière (€/an)',  type: 'number', val: data.taxeFonciere },
+    { key: 'loyer',        label: 'Loyer actuel (€/mois)', type: 'number', val: data.loyer },
+    { key: 'dpe',          label: 'DPE',                   type: 'select', val: data.dpe,
+      opts: ['A','B','C','D','E','F','G','Non précisé'] },
+    { key: 'etage',        label: 'Étage',                 type: 'text',   val: data.etage },
+    { key: 'notes',        label: 'Description extraite',  type: 'textarea', val: data.description },
+  ];
+
+  let html = '';
+  const missing = [];
+
+  fields.forEach(f => {
+    const hasVal = f.val !== null && f.val !== undefined && f.val !== '' && f.val !== 0;
+    const indicator = hasVal ? '🟢' : '🟡';
+    if (!hasVal && ['surface','prix','ville'].includes(f.key)) missing.push(f.label);
+
+    let input = '';
+    if (f.type === 'select') {
+      input = `<select id="af-${f.key}" style="border-color:${hasVal?'var(--green)':'var(--gold)'}">` +
+        f.opts.map(o => `<option ${o===f.val?'selected':''}>${o}</option>`).join('') + '</select>';
+    } else if (f.type === 'textarea') {
+      input = `<textarea id="af-${f.key}" rows="3" style="resize:none;font-size:11px;border-color:${hasVal?'var(--green)':'var(--border)'}">${f.val||''}</textarea>`;
+    } else {
+      input = `<input id="af-${f.key}" type="${f.type}" value="${f.val||''}" style="border-color:${hasVal?'var(--green)':'var(--gold)'}">`;
+    }
+
+    const fullWidth = ['adresse','nom','notes'].includes(f.key) ? 'grid-column:1/-1' : '';
+    html += `<div class="fgrp" style="${fullWidth}">
+      <label>${indicator} ${f.label}</label>
+      ${input}
+    </div>`;
+  });
+
+  document.getElementById('annonceFields').innerHTML = html;
+
+  const missingEl = document.getElementById('annonceMissing');
+  if (missing.length > 0) {
+    missingEl.style.display = 'block';
+    missingEl.textContent = '⚠️ Champs non trouvés : ' + missing.join(', ') + ' — complétez-les manuellement.';
+  } else {
+    missingEl.style.display = 'none';
+  }
+
+  document.getElementById('annonceResult').style.display = 'block';
+  document.getElementById('annonceResult').scrollIntoView({ behavior: 'smooth' });
+}
+
+function parseAnnonce(text) {
+  const t = text.replace(/\s+/g, ' ').trim();
+
+  // ── Prix ──
+  let prix = null;
+  const prixPatterns = [
+    /(\d[\d\s]{2,8})\s*€/g,
+    /prix\s*[:\-]?\s*(\d[\d\s]+)/gi,
+    /(\d+[\s.]?\d+)\s*euros?/gi,
+  ];
+  for (const pat of prixPatterns) {
+    const matches = [...t.matchAll(pat)];
+    for (const m of matches) {
+      const n = parseInt(m[1].replace(/\s/g,'').replace('.',''));
+      if (n > 10000 && n < 50000000) { prix = n; break; }
+    }
+    if (prix) break;
+  }
+
+  // ── Surface ──
+  let surface = null;
+  const surfPatterns = [
+    /(\d+(?:[.,]\d+)?)\s*m[²2]/gi,
+    /surface\s*[:\-]?\s*(\d+)/gi,
+    /(\d+)\s*metres?\s*carres?/gi,
+  ];
+  for (const pat of surfPatterns) {
+    const m = pat.exec(t);
+    if (m) { const n = parseFloat(m[1].replace(',','.')); if (n > 5 && n < 5000) { surface = n; break; } }
+  }
+
+  // ── Nombre de pièces ──
+  let nbPieces = null;
+  const piecesPatterns = [
+    /\bT(\d)\b/i,
+    /(\d)\s*pièces?/i,
+    /(\d)\s*rooms?/i,
+    /F(\d)\b/i,
+  ];
+  for (const pat of piecesPatterns) {
+    const m = pat.exec(t);
+    if (m) { nbPieces = parseInt(m[1]); break; }
+  }
+
+  // ── Type ──
+  let type = 'appartement';
+  if (/immeuble\s*(de rapport|entier|complet)/i.test(t)) type = 'immeuble';
+  else if (/\bmaison\b/i.test(t)) type = 'maison';
+  else if (/local\s*(commercial|professionnel)/i.test(t)) type = 'local';
+  else if (/terrain/i.test(t)) type = 'terrain';
+  else if (/appartement|appart\b|studio/i.test(t)) type = 'appartement';
+
+  // ── Ville & CP ──
+  let ville = '', cp = '';
+  const cpMatch = t.match(/\b(0[1-9]|[1-8]\d|9[0-5])\d{3}\b/);
+  if (cpMatch) {
+    cp = cpMatch[0];
+    // Try to find city near the CP
+    const ctx = t.slice(Math.max(0, cpMatch.index - 60), cpMatch.index + 60);
+    const cityMatch = ctx.match(/([A-ZÉÈÊËÀÂÎÏÔÙÛÜ][a-zéèêëàâîïôùûüç]+(?:[-\s][A-ZÉÈÊËÀÂÎÏÔÙÛÜÇA-Z][a-zéèêëàâîïôùûüç]*)*)\s*[\(,]?\s*(?:0[1-9]|[1-8]\d|9[0-5])\d{3}/);
+    if (cityMatch) ville = cityMatch[1].trim();
+  }
+
+  // Common cities without CP
+  if (!ville) {
+    const cities = ['Paris','Lyon','Marseille','Toulouse','Nice','Nantes','Strasbourg',
+      'Montpellier','Bordeaux','Lille','Rennes','Reims','Le Havre','Saint-Étienne',
+      'Toulon','Grenoble','Dijon','Angers','Nîmes','Villeurbanne'];
+    for (const c of cities) {
+      if (new RegExp('\\b' + c + '\\b', 'i').test(t)) { ville = c; break; }
+    }
+  }
+
+  // ── Adresse ──
+  let adresse = '';
+  const adrMatch = t.match(/\b(\d+[,\s]+(?:rue|avenue|boulevard|impasse|allée|place|chemin|voie|route)[^\n,]{3,40})/i);
+  if (adrMatch) adresse = adrMatch[1].trim().slice(0, 60);
+
+  // ── Année construction ──
+  let anneeConstr = null;
+  const anneeMatch = t.match(/(?:construit?|construction|(?:ann[ée]e?\s*(?:de\s*)?construction)[^\d]*)\s*[:\-]?\s*(1[89]\d{2}|20[012]\d)/i)
+    || t.match(/\b(19[2-9]\d|20[012]\d)\b/);
+  if (anneeMatch) {
+    const yr = parseInt(anneeMatch[1]);
+    if (yr >= 1850 && yr <= new Date().getFullYear()) anneeConstr = yr;
+  }
+
+  // ── Charges ──
+  let charges = null;
+  const chargesMatch = t.match(/charges?\s*[:\-]?\s*(\d+(?:[.,]\d+)?)\s*€?\s*(?:\/\s*mois|mensuel)/i)
+    || t.match(/(\d+)\s*€\s*(?:de\s*)?charges?\s*(?:\/\s*mois)?/i);
+  if (chargesMatch) charges = parseFloat(chargesMatch[1].replace(',','.'));
+
+  // ── Taxe foncière ──
+  let taxeFonciere = null;
+  const tfMatch = t.match(/taxe\s*fonci[eè]re\s*[:\-]?\s*(\d+(?:[.,]\d+)?)\s*€/i)
+    || t.match(/(\d+)\s*€\s*(?:de\s*)?taxe\s*fonci[eè]re/i);
+  if (tfMatch) taxeFonciere = parseFloat(tfMatch[1].replace(',','.'));
+
+  // ── Loyer actuel ──
+  let loyer = null;
+  const loyerMatch = t.match(/loyer\s*[:\-]?\s*(\d+(?:[.,]\d+)?)\s*€/i)
+    || t.match(/actuellement\s*lou[eé]\s*[:\-]?\s*(\d+)/i);
+  if (loyerMatch) loyer = parseFloat(loyerMatch[1].replace(',','.'));
+
+  // ── DPE ──
+  let dpe = 'Non précisé';
+  const dpeMatch = t.match(/\bDPE\s*[:\-]?\s*([A-G])\b/i)
+    || t.match(/classe\s*[:\-]?\s*([A-G])\b/i)
+    || t.match(/\b([A-G])\s*\(\d+\s*kwh\b/i);
+  if (dpeMatch) dpe = dpeMatch[1].toUpperCase();
+
+  // ── Étage ──
+  let etage = '';
+  const etageMatch = t.match(/(\d+(?:er|ème|e)?)\s*(?:étage|floor)/i)
+    || t.match(/(?:étage|floor)\s*[:\-]?\s*(\d+)/i)
+    || t.match(/\bRDC\b|\brez[- ]de[- ]chauss[eé]e\b/i);
+  if (etageMatch) etage = etageMatch[1] || 'RDC';
+
+  // ── Nom / titre ──
+  let nom = '';
+  // Try to build a smart name
+  const parts = [];
+  if (type === 'appartement' && nbPieces) parts.push(`T${nbPieces}`);
+  else if (type !== 'appartement') parts.push(type.charAt(0).toUpperCase() + type.slice(1));
+  if (surface) parts.push(`${surface}m²`);
+  if (ville) parts.push(ville);
+  nom = parts.join(' ') || 'Bien importé';
+
+  // ── Description ──
+  // Extract a clean summary (first 300 chars of meaningful text)
+  const description = t.replace(/\s+/g,' ').slice(0, 300);
+
+  return { nom, type, surface, nbPieces, prix, adresse, ville, cp,
+           anneeConstr, charges, taxeFonciere, loyer, dpe, etage, description };
+}
+
+function getFieldVal(key, type = 'text') {
+  const el = document.getElementById('af-' + key);
+  if (!el) return null;
+  if (type === 'number') return parseFloat(el.value) || 0;
+  return el.value.trim();
+}
+
+function importerAnnonce() {
+  const pfTarget = document.getElementById('annoncePfTarget').value;
+  const nom = getFieldVal('nom') || 'Bien importé';
+  const type = getFieldVal('type') || 'appartement';
+  const prix = getFieldVal('prix', 'number');
+  const surface = getFieldVal('surface', 'number');
+  const adresse = getFieldVal('adresse');
+  const ville = getFieldVal('ville');
+  const cp = getFieldVal('cp');
+  const anneeConstr = getFieldVal('anneeConstr', 'number');
+  const charges = getFieldVal('charges', 'number');
+  const taxeFonciere = getFieldVal('taxeFonciere', 'number');
+  const loyer = getFieldVal('loyer', 'number');
+  const dpe = getFieldVal('dpe');
+  const etage = getFieldVal('etage');
+  const notes = `DPE: ${dpe} | Étage: ${etage || '—'} | ` + getFieldVal('notes');
+
+  if (pfTarget === 'new') {
+    // Create a new portfolio (immeuble) with this data
+    const pf = {
+      id: uid(), name: nom, type, adresse, ville, cp,
+      surface, prixAchat: prix,
+      strategie: 'LMNP', statut: 'prospect',
+      desc: notes, biens: [], createdAt: Date.now()
+    };
+    // Pre-fill the acquisition data
+    pf.data = {
+      acq: { prixAchat: prix, fraisNotaire: 7.5, apport: 0 },
+      emp: { montant: Math.round(prix * 0.85), taux: 3.8, duree: 20, assurance: 0.12 },
+      travauxPC: [], lots: type === 'immeuble' ? [] : null,
+      loc: {
+        loyer: loyer || 0, charges: charges || 0,
+        tauxOcc: 92, revalo: 1.5, fraisGestion: 0,
+        taxeFonciere: taxeFonciere || 0, pno: 0, copro: charges || 0,
+        loyerBas: 0, loyerHaut: 0, occBas: 80, occHaut: 98
+      },
+      fiscal: { regime: 'nu' }
+    };
+    S.portfolios.push(pf);
+    S.openPids[pf.id] = true;
+    S.activePid = pf.id;
+    S.activeBid = null;
+    S.activeTab = 'acquisition';
+
+    // If single lot (not immeuble), create one lot automatically
+    if (type !== 'immeuble') {
+      const lot = {
+        id: uid(), nom: nom, type: `T${getFieldVal('nbPieces','number') || 2}`,
+        surface, loyer: loyer || 0, charges: charges || 0,
+        statut: loyer > 0 ? 'loue' : 'vacant',
+        locataire: '', dateEntree: '', depotGarantie: 0,
+        loyerApresTravaux: 0, notes, travaux: [], _open: false,
+        anneeConstr, dpe, etage
+      };
+      if (!pf.data.lots) pf.data.lots = [];
+      pf.data.lots.push(lot);
+      pf.biens.push(lot);
+    }
+
+  } else {
+    // Add as a lot to existing portfolio
+    const pf = S.portfolios.find(p => p.id === pfTarget);
+    if (!pf) return;
+    const lot = {
+      id: uid(), nom, type,
+      surface, loyer: loyer || 0, charges: charges || 0,
+      statut: loyer > 0 ? 'loue' : 'vacant',
+      locataire: '', dateEntree: '', depotGarantie: 0,
+      loyerApresTravaux: 0, notes,
+      travaux: [], _open: false,
+      anneeConstr, dpe, etage,
+      data: defaultData(type)
+    };
+    lot.data.acq.prixAchat = prix;
+    lot.data.loc.loyer = loyer || 0;
+    lot.data.loc.taxeFonciere = taxeFonciere || 0;
+    lot.data.loc.copro = charges || 0;
+    pf.biens.push(lot);
+    S.activePid = pf.id;
+    S.activeBid = lot.id;
+    S.activeTab = 'synthese';
+  }
+
+  save();
+  closeMo('moImportAnnonce');
+  render();
+
+  // Show success
+  setTimeout(() => {
+    const el = document.getElementById('mainContent');
+    if (el) {
+      const banner = document.createElement('div');
+      banner.className = 'alert a-ok';
+      banner.style.cssText = 'position:fixed;top:60px;right:20px;z-index:999;min-width:300px;box-shadow:var(--shmd)';
+      banner.innerHTML = `✅ <strong>${nom}</strong> importé avec succès !<br><span class="text-xs muted">Vérifiez et complétez les données manquantes.</span>`;
+      document.body.appendChild(banner);
+      setTimeout(() => banner.remove(), 4000);
+    }
+  }, 300);
+}
+
+// ═══════════════════════════════════════════
 // MOBILE SIDEBAR
 // ═══════════════════════════════════════════
 function openSidebar() {
@@ -2314,6 +2652,41 @@ function mobileNavThen(fn) {
       <button class="btn-sec" style="color:var(--danger);border-color:var(--danger)" onclick="deleteArtisan(document.getElementById('moArtisanId').value)" id="btnDeleteArtisan">Supprimer</button>
       <button class="btn-sec" onclick="closeMo('moArtisan')">Annuler</button>
       <button class="btn-pri" onclick="saveArtisan()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- MODAL IMPORT ANNONCE -->
+<div class="mo" id="moImportAnnonce">
+  <div class="mo-box" style="width:680px;max-height:90vh;overflow-y:auto">
+    <div class="mo-title">📋 Importer une annonce</div>
+    <div class="alert a-info" style="font-size:12px">
+      <strong>Comment faire :</strong> Ouvre l'annonce sur Le Bon Coin → sélectionne tout le texte (Ctrl+A) → copie (Ctrl+C) → colle ci-dessous → clique Analyser.
+    </div>
+    <div class="fgrp" style="margin-bottom:14px">
+      <label>Texte de l'annonce (colle tout le contenu)</label>
+      <textarea id="annonceText" rows="10" style="resize:vertical;font-size:12px;line-height:1.5" placeholder="Colle ici le texte complet de l'annonce Le Bon Coin, SeLoger, PAP ou autre..."></textarea>
+    </div>
+    <div class="mo-acts" style="justify-content:flex-start;margin-bottom:16px">
+      <button class="btn-pri" onclick="analyserAnnonce()">🔍 Analyser l'annonce</button>
+      <button class="btn-sec" onclick="document.getElementById('annonceText').value=''">Effacer</button>
+    </div>
+    <div id="annonceResult" style="display:none">
+      <div class="divider"></div>
+      <div class="fs-title" style="margin-bottom:12px">✅ Données extraites — vérifiez et corrigez si besoin</div>
+      <div class="fg fg2" id="annonceFields"></div>
+      <div id="annonceMissing" class="alert a-warn" style="margin-top:12px;display:none"></div>
+      <div class="mo-acts" style="margin-top:16px">
+        <div class="fgrp" style="flex:1">
+          <label>Créer dans le portefeuille</label>
+          <select id="annoncePfTarget">
+            <option value="new">+ Créer un nouvel immeuble</option>
+          </select>
+        </div>
+        <button class="btn-sec" onclick="closeMo('moImportAnnonce')">Annuler</button>
+        <button class="btn-pri" onclick="importerAnnonce()">Créer la fiche</button>
+      </div>
     </div>
   </div>
 </div>

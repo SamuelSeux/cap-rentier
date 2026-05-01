@@ -408,7 +408,7 @@ body.dark .artisan-card.selected{background:#1A2E22}
   <div class="sb-actions">
     <button class="btn-new" onclick="openMoPf()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      Nouveau portefeuille
+      Nouvel immeuble
     </button>
   </div>
   <div class="sb-list" id="sbList"></div>
@@ -441,11 +441,39 @@ body.dark .artisan-card.selected{background:#1A2E22}
 
 <!-- MODAL PORTFOLIO -->
 <div class="mo" id="moPf">
-  <div class="mo-box">
-    <div class="mo-title">Nouveau portefeuille</div>
+  <div class="mo-box" style="width:560px">
+    <div class="mo-title">Nouvel immeuble</div>
     <div class="fg fg2">
-      <div class="fgrp fg-full"><label>Nom du portefeuille</label><input type="text" id="pfName" placeholder="Ex: Résidentiel Nice"></div>
-      <div class="fgrp fg-full"><label>Description (optionnel)</label><textarea id="pfDesc" rows="2" style="resize:none" placeholder="Notes..."></textarea></div>
+      <div class="fgrp"><label>Nom de l'immeuble</label><input type="text" id="pfName" placeholder="Ex: Immeuble Lyon Confluence"></div>
+      <div class="fgrp"><label>Type</label>
+        <select id="pfType">
+          <option value="immeuble">Immeuble de rapport</option>
+          <option value="appartement">Appartement seul</option>
+          <option value="maison">Maison</option>
+          <option value="local">Local commercial</option>
+        </select>
+      </div>
+      <div class="fgrp fg-full"><label>Adresse</label><input type="text" id="pfAdresse" placeholder="12 rue de la Paix"></div>
+      <div class="fgrp"><label>Ville</label><input type="text" id="pfVille" placeholder="Nice"></div>
+      <div class="fgrp"><label>Code postal</label><input type="text" id="pfCp" placeholder="06000"></div>
+      <div class="fgrp"><label>Surface totale (m²)</label><input type="number" id="pfSurface" placeholder="250"></div>
+      <div class="fgrp"><label>Prix d'achat global (€)</label><input type="number" id="pfPrix" placeholder="350000"></div>
+      <div class="fgrp"><label>Stratégie</label>
+        <select id="pfStrategie">
+          <option value="LMNP">LMNP</option>
+          <option value="nu">Location nue</option>
+          <option value="sci-is">SCI à l'IS</option>
+          <option value="micro-bic">Meublé micro-BIC</option>
+        </select>
+      </div>
+      <div class="fgrp"><label>Statut</label>
+        <select id="pfStatut">
+          <option value="prospect">En prospection</option>
+          <option value="actif">Actif</option>
+          <option value="travaux">En travaux</option>
+        </select>
+      </div>
+      <div class="fgrp fg-full"><label>Notes</label><textarea id="pfDesc" rows="2" style="resize:none" placeholder="Notes..."></textarea></div>
     </div>
     <div class="mo-acts"><button class="btn-sec" onclick="closeMo('moPf')">Annuler</button><button class="btn-pri" onclick="savePf()">Créer</button></div>
   </div>
@@ -454,9 +482,9 @@ body.dark .artisan-card.selected{background:#1A2E22}
 <!-- MODAL BIEN -->
 <div class="mo" id="moBien">
   <div class="mo-box">
-    <div class="mo-title" id="moBienTitle">Nouveau bien</div>
+    <div class="mo-title" id="moBienTitle">Nouveau lot</div>
     <div class="fg fg2">
-      <div class="fgrp"><label>Nom</label><input type="text" id="bNom" placeholder="T3 Nice Centre"></div>
+      <div class="fgrp"><label>Nom du lot</label><input type="text" id="bNom" placeholder="Appt 2ème gauche"></div>
       <div class="fgrp"><label>Type</label>
         <select id="bType">
           <option value="appartement">Appartement</option>
@@ -467,7 +495,7 @@ body.dark .artisan-card.selected{background:#1A2E22}
         </select>
       </div>
       <div class="fgrp fg-full"><label>Adresse</label><input type="text" id="bAdresse" placeholder="123 rue de la Paix, 75001 Paris"></div>
-      <div class="fgrp"><label>Ville</label><input type="text" id="bVille" placeholder="Nice"></div>
+      <div class="fgrp"><label>Ville (auto depuis immeuble)</label><input type="text" id="bVille" placeholder="Auto"></div>
       <div class="fgrp"><label>Surface (m²)</label><input type="number" id="bSurface" placeholder="65"></div>
       <div class="fgrp"><label>Année construction</label><input type="number" id="bAnnee" placeholder="1985"></div>
       <div class="fgrp"><label>Statut</label>
@@ -738,7 +766,9 @@ function calcBien(bien, overrides = {}) {
   const acq = d.acq, emp = d.emp;
   const loc = {...d.loc, ...overrides};
 
-  const prixAchat = acq.prixAchat || 0;
+  // Prix: use portfolio global price if bien has no individual price
+  const portfolio = S.portfolios.find(p => p.biens && p.biens.some(b => b === bien));
+  const prixAchat = (acq.prixAchat && acq.prixAchat > 0) ? acq.prixAchat : (portfolio ? (portfolio.prixAchat || 0) : 0);
   const fraisNotaire = prixAchat * (acq.fraisNotaire / 100);
   const travauxPC = (d.travauxPC || []).reduce((s,t) => s + (t.valide ? (parseFloat(t.reel)||0) : (parseFloat(t.estime)||0)), 0);
   const travauxLots = d.lots ? d.lots.flatMap(l => l.travaux || []).reduce((s,t) => s + (t.valide ? (parseFloat(t.reel)||0) : (parseFloat(t.estime)||0)), 0) : 0;
@@ -859,8 +889,8 @@ function renderSidebar() {
   S.portfolios.forEach(p => {
     const open = S.openPids[p.id];
     html += `<div class="pg-head ${open?'open':''}" onclick="togglePg('${p.id}')">
-      <div class="pg-icon">🏘</div>
-      <span class="pg-name">${p.name}</span>
+      <div class="pg-icon">${p.type==='appartement'?'🏠':p.type==='maison'?'🏡':p.type==='local'?'🏪':'🏢'}</div>
+      <span class="pg-name">${p.name}${p.ville?' — '+p.ville:''}</span>
       <div class="pg-acts">
         <button class="ib-btn" onclick="event.stopPropagation();openAddBien('${p.id}')" title="Ajouter">+</button>
         <button class="ib-btn" onclick="event.stopPropagation();deletePf('${p.id}')" title="Supprimer">×</button>
@@ -927,14 +957,23 @@ function openMoPf() { document.getElementById('pfName').value=''; document.getEl
 function openMoBien() { document.getElementById('moBien').classList.add('open'); }
 function closeMo(id) { document.getElementById(id).classList.remove('open'); }
 let _currentPid = null;
-function openAddBien(pid) { _currentPid = pid; document.getElementById('moBienTitle').textContent = 'Nouveau bien'; ['bNom','bAdresse','bVille','bSurface','bAnnee'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; }); openMoBien(); }
+function openAddBien(pid) { _currentPid = pid; document.getElementById('moBienTitle').textContent = 'Nouveau lot'; ['bNom','bAdresse','bVille','bSurface','bAnnee'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; }); openMoBien(); }
 
 function savePf() {
   const name = document.getElementById('pfName').value.trim(); if (!name) return;
-  const p = { id: uid(), name, desc: document.getElementById('pfDesc').value, biens: [], createdAt: Date.now() };
+  const g = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+  const p = {
+    id: uid(), name, type: g('pfType') || 'immeuble',
+    adresse: g('pfAdresse'), ville: g('pfVille'), cp: g('pfCp'),
+    surface: parseFloat(g('pfSurface')) || 0,
+    prixAchat: parseFloat(g('pfPrix')) || 0,
+    strategie: g('pfStrategie') || 'LMNP',
+    statut: g('pfStatut') || 'prospect',
+    desc: g('pfDesc'),
+    biens: [], createdAt: Date.now()
+  };
   S.portfolios.push(p); S.openPids[p.id] = true;
   save(); closeMo('moPf'); renderSidebar();
-  document.getElementById('pfName').value = ''; document.getElementById('pfDesc').value = '';
 }
 function saveBien() {
   const nom = document.getElementById('bNom').value.trim(); if (!nom) return;
@@ -1056,7 +1095,8 @@ function renderDashboard() {
   <div class="sec-title">Mes biens</div>
   <div class="bg-grid">
     ${allBiens.map(b => {
-      const pid = S.portfolios.find(p => p.biens.includes(b))?.id;
+      const pid = S.portfolios.find(p => p.biens && p.biens.includes(b))?.id;
+      const pf = S.portfolios.find(p => p.id === pid);
       const c = calcBien(b);
       const hasTravaux = (b.data.travauxPC||[]).length + (b.data.lots ? b.data.lots.flatMap(l=>l.travaux||[]).length : 0);
       const travDone = (b.data.travauxPC||[]).filter(t=>t.valide).length + (b.data.lots ? b.data.lots.flatMap(l=>l.travaux||[]).filter(t=>t.valide).length : 0);

@@ -1,0 +1,2322 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Cap Rentier">
+<meta name="theme-color" content="#1A1916">
+<title>Cap Rentier</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+--bg:#F7F6F3;--surface:#FFFFFF;--s2:#F0EFE9;--s3:#E8E6DE;
+--text:#1A1916;--t2:#5C5A52;--t3:#9B9890;
+--accent:#1A1916;--green:#3D6B4F;--gold:#C17B3E;
+--border:#E2E0D6;--border2:#D0CEC3;
+--danger:#C0392B;--success:#2E7D52;--warn:#C17B3E;
+--r:12px;--rsm:8px;--rlg:16px;
+--sh:0 1px 3px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.04);
+--shmd:0 4px 24px rgba(0,0,0,.08);
+}
+body.dark{
+--bg:#16151A;--surface:#1E1D24;--s2:#25242C;--s3:#2C2B35;
+--text:#F0EEE8;--t2:#A8A49C;--t3:#6B6862;
+--border:#2E2D38;--border2:#3A3948;
+--green:#4A8A63;--gold:#D4903A;
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;font-size:14px;transition:background .25s,color .25s;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased}
+
+/* SIDEBAR */
+#sb{width:252px;min-height:100vh;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0;z-index:100;transition:background .25s,border-color .25s}
+.sb-head{padding:18px 16px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.logo{font-family:'DM Serif Display',serif;font-size:17px;letter-spacing:-.3px}
+.logo em{color:var(--green);font-style:normal}
+.dark-toggle{background:none;border:1px solid var(--border);border-radius:20px;padding:4px 10px;font-size:11px;cursor:pointer;color:var(--t2);transition:all .15s;display:flex;align-items:center;gap:4px}
+.dark-toggle:hover{border-color:var(--border2);color:var(--text)}
+.sb-actions{padding:10px 10px 0}
+.btn-new{width:100%;padding:8px 12px;background:var(--accent);color:#fff;border:none;border-radius:var(--rsm);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:7px;transition:opacity .15s}
+.btn-new:hover{opacity:.85}
+.sb-list{flex:1;overflow-y:auto;padding:6px 0}
+.sec-lbl{font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--t3);padding:10px 14px 5px}
+.pg-head{display:flex;align-items:center;gap:5px;padding:6px 10px;cursor:pointer;border-radius:var(--rsm);margin:0 6px;transition:background .12s;font-size:13px;font-weight:500;position:relative}
+.pg-head:hover{background:var(--s2)}
+.pg-icon{width:20px;height:20px;border-radius:5px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0}
+.pg-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+.pg-acts{display:flex;gap:1px;opacity:0;transition:opacity .15s}
+.pg-head:hover .pg-acts{opacity:1}
+.chev{font-size:9px;color:var(--t3);transition:transform .2s;margin-left:auto}
+.pg-head.open .chev{transform:rotate(90deg)}
+.ib-btn{background:none;border:none;cursor:pointer;padding:2px 5px;border-radius:3px;color:var(--t3);font-size:12px;line-height:1;transition:background .12s}
+.ib-btn:hover{background:var(--border);color:var(--text)}
+.pg-items{padding:0 6px 3px 28px}
+.b-item{display:flex;align-items:center;gap:5px;padding:5px 8px;border-radius:var(--rsm);cursor:pointer;transition:background .12s;font-size:12px;color:var(--t2)}
+.b-item:hover{background:var(--s2);color:var(--text)}
+.b-item.active{background:var(--accent);color:#fff}
+.b-item .bdg{font-size:9px;padding:2px 5px;border-radius:8px;margin-left:auto;font-weight:600}
+.b-item.active .bdg{background:rgba(255,255,255,.2);color:#fff}
+.bg-g{background:#D4EDDA;color:#155724}.bg-w{background:#FFF3CD;color:#856404}.bg-r{background:#F8D7DA;color:#721C24}
+.sb-foot{padding:10px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:6px}
+.btn-sm{width:100%;padding:7px 12px;background:none;border:1px solid var(--border2);border-radius:var(--rsm);font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;color:var(--t2);cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:5px;justify-content:center}
+.btn-sm:hover{background:var(--s2);border-color:var(--border2)}
+.nav-item{display:flex;align-items:center;gap:5px;padding:5px 8px;border-radius:var(--rsm);cursor:pointer;transition:background .12s;font-size:12px;color:var(--t2);margin:0 6px}
+.nav-item:hover{background:var(--s2);color:var(--text)}
+.nav-item.active{background:var(--accent);color:#fff}
+
+/* MAIN */
+#main{margin-left:252px;flex:1;min-height:100vh}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 28px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;transition:background .25s}
+.tb-title{font-size:14px;font-weight:500}
+.tb-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.tab-btn{padding:5px 12px;border:none;background:none;border-radius:var(--rsm);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;color:var(--t2);transition:all .15s;white-space:nowrap}
+.tab-btn:hover{background:var(--s2);color:var(--text)}
+.tab-btn.active{background:var(--accent);color:#fff}
+.content{padding:24px 28px}
+
+/* METRIC CARDS */
+.mg{display:grid;gap:14px;margin-bottom:22px}
+.mg4{grid-template-columns:repeat(4,1fr)}
+.mg3{grid-template-columns:repeat(3,1fr)}
+.mg2{grid-template-columns:repeat(2,1fr)}
+.mc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;transition:background .25s,border-color .25s}
+.mc-lbl{font-size:10px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--t3);margin-bottom:7px}
+.mc-val{font-size:24px;font-weight:300;letter-spacing:-.5px;font-family:'DM Serif Display',serif}
+.mc-val.pos{color:var(--success)}.mc-val.neg{color:var(--danger)}
+.mc-sub{font-size:11px;color:var(--t3);margin-top:3px}
+.mc-hl{border-color:var(--green);background:#F0F7F2}
+body.dark .mc-hl{background:#1A2E22}
+
+/* SCORE */
+.score-ring{width:56px;height:56px;position:relative;flex-shrink:0}
+.score-ring svg{transform:rotate(-90deg)}
+.score-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;font-family:'DM Serif Display',serif}
+.score-label{font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+
+/* BIEN CARDS */
+.bg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-bottom:22px}
+.bc{background:var(--surface);border:1px solid var(--border);border-radius:var(--rlg);padding:18px;cursor:pointer;transition:all .2s;position:relative}
+.bc:hover{border-color:var(--accent);box-shadow:var(--shmd);transform:translateY(-1px)}
+.bc-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px}
+.bc-icon{width:38px;height:38px;border-radius:9px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:16px}
+.bc-status{font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;padding:3px 8px;border-radius:20px}
+.s-actif{background:#D4EDDA;color:#155724}.s-prospect{background:#FFF3CD;color:#856404}.s-travaux{background:#CCE5FF;color:#004085}
+.bc-name{font-size:14px;font-weight:600;margin-bottom:2px}
+.bc-addr{font-size:11px;color:var(--t3);margin-bottom:12px}
+.bc-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border-top:1px solid var(--border);padding-top:12px}
+.bcm-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);margin-bottom:2px}
+.bcm-val{font-size:13px;font-weight:600}
+.bcm-val.g{color:var(--success)}.bcm-val.b{color:var(--danger)}
+.bc-travaux{font-size:10px;margin-top:8px;padding:6px 8px;border-radius:6px;background:var(--s2)}
+
+/* FORMS */
+.fs{background:var(--surface);border:1px solid var(--border);border-radius:var(--rlg);padding:22px;margin-bottom:18px;transition:background .25s,border-color .25s}
+.fs-title{font-size:13px;font-weight:600;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px}
+.fg{display:grid;gap:14px}
+.fg2{grid-template-columns:repeat(2,1fr)}
+.fg3{grid-template-columns:repeat(3,1fr)}
+.fg4{grid-template-columns:repeat(4,1fr)}
+.fg-full{grid-column:1/-1}
+.fgrp{display:flex;flex-direction:column;gap:4px}
+label{font-size:11px;font-weight:500;color:var(--t2)}
+input,select,textarea{padding:8px 11px;border:1px solid var(--border);border-radius:var(--rsm);font-family:'DM Sans',sans-serif;font-size:13px;background:var(--surface);color:var(--text);outline:none;transition:border-color .15s,background .25s;width:100%;-webkit-appearance:none;appearance:none}select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239B9890' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:30px}
+input:focus,select:focus,textarea:focus{border-color:var(--green)}
+input[type=range]{padding:3px 0;border:none;accent-color:var(--green)}
+.calc-val{font-size:12px;color:var(--green);font-weight:600;margin-top:2px}
+
+/* TRAVAUX */
+.tw-row{display:grid;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)}
+.tw-row:last-child{border:none}
+.tw-cols-pc{grid-template-columns:1fr 120px 90px 90px 80px 100px 68px 28px}
+.tw-cols-lot{grid-template-columns:1fr 120px 100px 100px 100px 80px 32px}
+.tw-hdr{font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);padding:4px 0 6px;border-bottom:1px solid var(--border2);display:grid;gap:8px;align-items:center}
+.btn-add{padding:6px 12px;background:none;border:1px dashed var(--border2);border-radius:var(--rsm);font-family:'DM Sans',sans-serif;font-size:11px;color:var(--t3);cursor:pointer;transition:all .15s;margin-top:10px}
+.btn-add:hover{border-color:var(--green);color:var(--green)}
+.btn-rm{background:none;border:none;cursor:pointer;color:var(--t3);font-size:15px;padding:1px 5px;border-radius:3px;transition:all .15s;line-height:1}
+.btn-rm:hover{background:#F8D7DA;color:var(--danger)}
+.btn-validate{padding:5px 10px;background:var(--green);color:#fff;border:none;border-radius:var(--rsm);font-size:11px;font-weight:600;cursor:pointer;transition:opacity .15s}
+.btn-validate:hover{opacity:.85}
+.tw-validated{text-decoration:line-through;opacity:.6}
+
+/* LOTS */
+.lots-layout{display:grid;grid-template-columns:1fr 280px;gap:20px}
+.lot-form-area{min-width:0}
+.lot-mini-list{display:flex;flex-direction:column;gap:10px}
+.lot-mini{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:12px 14px;cursor:pointer;transition:all .15s}
+.lot-mini:hover{border-color:var(--green)}
+.lot-mini.selected{border-color:var(--green);background:#F0F7F2}
+body.dark .lot-mini.selected{background:#1A2E22}
+.lot-mini-name{font-size:12px;font-weight:600;margin-bottom:4px}
+.lot-mini-sub{font-size:10px;color:var(--t3)}
+.lot-mini-loyer{font-size:13px;font-weight:600;color:var(--green);margin-top:4px}
+.lot-mini-status{font-size:9px;font-weight:600;padding:2px 7px;border-radius:10px;display:inline-block;margin-top:4px}
+
+/* RESULT CARDS */
+.rg{display:grid;gap:12px;margin-bottom:18px}
+.rg3{grid-template-columns:repeat(3,1fr)}
+.rg4{grid-template-columns:repeat(4,1fr)}
+.rc{padding:14px 16px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface)}
+.rc.hl{border-color:var(--green);background:#F0F7F2}
+body.dark .rc.hl{background:#1A2E22}
+.rc.dng{border-color:var(--danger);background:#FEF5F4}
+body.dark .rc.dng{background:#2A1515}
+.rc-lbl{font-size:10px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--t3);margin-bottom:5px}
+.rc-val{font-size:20px;font-weight:300;font-family:'DM Serif Display',serif;letter-spacing:-.3px}
+.rc-sub{font-size:10px;color:var(--t3);margin-top:2px}
+
+/* SECTION TITLE */
+.sec-title{font-family:'DM Serif Display',serif;font-size:19px;font-weight:400;margin-bottom:14px;letter-spacing:-.3px}
+
+/* ALERTS */
+.alert{padding:10px 14px;border-radius:var(--rsm);font-size:12px;margin-bottom:14px;border-left:3px solid;line-height:1.5}
+.a-info{background:#EBF5FE;border-color:#2196F3;color:#0D47A1}.a-warn{background:#FFF8E1;border-color:var(--warn);color:#6D4C00}.a-ok{background:#E8F5E9;border-color:var(--success);color:#1B5E20}.a-err{background:#FEEBEE;border-color:var(--danger);color:#B71C1C}
+body.dark .a-info{background:#0D2035;color:#90CAF9}
+body.dark .a-warn{background:#2D1F00;color:#FFD54F}
+body.dark .a-ok{background:#0A2015;color:#81C784}
+body.dark .a-err{background:#2A0A0A;color:#EF9A9A}
+
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{padding:7px 10px;background:var(--s2);text-align:left;font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--t3)}
+.tbl td{padding:6px 10px;border-bottom:1px solid var(--border)}
+.tbl tr:hover td{background:var(--s2)}
+.tbl tr.base td{background:#F0F7F2;font-weight:600}
+body.dark .tbl tr.base td{background:#1A2E22}
+.tbl-scroll{max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--rsm)}
+.pos{color:var(--success)}.neg{color:var(--danger)}
+
+/* SENSITIVITY */
+.sens-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.sens-tbl th{padding:8px 12px;background:var(--s2);font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);text-align:center}
+.sens-tbl td{padding:7px 12px;border-bottom:1px solid var(--border);text-align:center}
+.sens-tbl tr.base-row td{background:#F0F7F2;font-weight:600}
+body.dark .sens-tbl tr.base-row td{background:#1A2E22}
+
+/* SCENARIO CARDS */
+.sc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}
+.sc-card{border-radius:var(--r);padding:16px;border:2px solid var(--border);cursor:pointer;transition:all .2s}
+.sc-card:hover{transform:translateY(-2px);box-shadow:var(--shmd)}
+.sc-card.selected{box-shadow:0 0 0 2px var(--green)}
+.sc-pess{border-color:#F5C6CB;background:#FEF5F4}.sc-real{border-color:var(--green);background:#F0F7F2}.sc-opti{border-color:#B8D4C4;background:#EBF5EE}
+body.dark .sc-pess{background:#2A1515}
+body.dark .sc-real{background:#1A2E22}
+body.dark .sc-opti{background:#152A1E}
+.sc-title{font-weight:600;font-size:12px;margin-bottom:8px;display:flex;align-items:center;gap:5px}
+.sc-cf{font-family:'DM Serif Display',serif;font-size:26px;letter-spacing:-.5px;margin-bottom:3px}
+.selected-badge{font-size:9px;padding:2px 6px;border-radius:8px;background:var(--green);color:#fff;margin-left:auto}
+
+/* FISCAL */
+.reg-sel{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px}
+.reg-btn{padding:10px;border:1.5px solid var(--border);border-radius:var(--rsm);cursor:pointer;background:var(--surface);transition:all .15s;text-align:center}
+.reg-btn:hover{border-color:var(--border2)}
+.reg-btn.active{border-color:var(--green);background:#F0F7F2}
+body.dark .reg-btn.active{background:#1A2E22}
+.reg-title{font-size:11px;font-weight:600;margin-bottom:2px}
+.reg-sub{font-size:9px;color:var(--t3)}
+
+/* PRICE FINDER */
+.pf-box{background:linear-gradient(135deg,var(--surface) 0%,#F0F7F2 100%);border:1px solid #B8D4C4;border-radius:var(--rlg);padding:22px;margin-bottom:18px}
+body.dark .pf-box{background:var(--s2);border-color:var(--green)}
+.price-big{font-family:'DM Serif Display',serif;font-size:34px;font-weight:400;letter-spacing:-1px;color:var(--green)}
+
+/* PROJECTIONS */
+.proj-data{width:100%;border-collapse:collapse;font-size:11px;margin-top:12px}
+.proj-data th{padding:5px 8px;background:var(--s2);font-size:10px;font-weight:600;letter-spacing:.3px;text-transform:uppercase;color:var(--t3);text-align:center}
+.proj-data td{padding:5px 8px;border-bottom:1px solid var(--border);text-align:center}
+.proj-data tr:hover td{background:var(--s2)}
+.proj-data .yr-hl td{background:#F0F7F2;font-weight:600}
+body.dark .proj-data .yr-hl td{background:#1A2E22}
+
+/* CHART WRAPPER */
+.cw{background:var(--surface);border:1px solid var(--border);border-radius:var(--rlg);padding:18px;margin-bottom:16px;transition:background .25s}
+.cw-title{font-size:12px;font-weight:600;margin-bottom:14px;color:var(--t2);display:flex;align-items:center;justify-content:space-between}
+
+/* MODAL */
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.mo.open{opacity:1;pointer-events:all}
+.mo-box{background:var(--surface);border-radius:var(--rlg);padding:26px;width:480px;max-width:92vw;box-shadow:var(--shmd);transform:translateY(6px);transition:transform .2s,background .25s}
+.mo.open .mo-box{transform:translateY(0)}
+.mo-title{font-family:'DM Serif Display',serif;font-size:19px;margin-bottom:18px}
+.mo-acts{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
+.btn-pri{padding:8px 18px;background:var(--accent);color:#fff;border:none;border-radius:var(--rsm);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:opacity .15s}
+.btn-pri:hover{opacity:.85}
+.btn-sec{padding:8px 18px;background:none;border:1px solid var(--border2);border-radius:var(--rsm);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;color:var(--t2);transition:all .15s}
+.btn-sec:hover{background:var(--s2)}
+
+/* MISC */
+.flex{display:flex}.items-c{align-items:center}.just-b{justify-content:space-between}.gap-8{gap:8px}.gap-12{gap:12px}
+.mt-8{margin-top:8px}.mt-16{margin-top:16px}.mb-8{margin-bottom:8px}.mb-16{margin-bottom:16px}
+.fw6{font-weight:600}.text-sm{font-size:12px}.text-xs{font-size:11px}.muted{color:var(--t3)}
+.divider{height:1px;background:var(--border);margin:14px 0}
+.chip{display:inline-flex;align-items:center;padding:2px 8px;border-radius:16px;font-size:10px;font-weight:600}
+.ch-g{background:#D4EDDA;color:#155724}.ch-r{background:#F8D7DA;color:#721C24}.ch-y{background:#FFF3CD;color:#856404}.ch-b{background:#CCE5FF;color:#004085}
+.row-kv{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)}
+.row-kv:last-child{border:none}
+.breadcrumb{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t3);margin-bottom:16px}
+.breadcrumb span{cursor:pointer}.breadcrumb span:hover{color:var(--text)}
+.empty{text-align:center;padding:50px 20px;color:var(--t3)}
+.empty-icon{font-size:36px;margin-bottom:12px}
+.empty-title{font-size:16px;font-weight:500;color:var(--t2);margin-bottom:6px}
+.empty-sub{font-size:12px;line-height:1.6}
+.progress-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:6px}
+.progress-fill{height:100%;border-radius:2px;transition:width .3s}
+.toggle{position:relative;width:34px;height:18px}
+.toggle input{opacity:0;width:0;height:0}
+.tg-sl{position:absolute;inset:0;background:var(--border2);border-radius:18px;cursor:pointer;transition:.2s}
+.tg-sl:before{content:'';position:absolute;height:12px;width:12px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s}
+input:checked+.tg-sl{background:var(--green)}
+input:checked+.tg-sl:before{transform:translateX(16px)}
+
+/* ═══════════════════════════════════════════
+   RESPONSIVE MOBILE
+   ═══════════════════════════════════════════ */
+
+/* Hamburger button */
+#hamburger{display:none;position:fixed;top:12px;left:12px;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:var(--rsm);padding:8px 10px;cursor:pointer;font-size:18px;line-height:1;box-shadow:var(--sh)}
+#sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99;opacity:0;transition:opacity .25s}
+#sb-overlay.open{opacity:1}
+
+/* Close btn inside sidebar on mobile */
+#sb-close{display:none;position:absolute;top:14px;right:12px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--t2);line-height:1}
+
+@media(max-width:768px){
+  /* Sidebar off-canvas */
+  #sb{transform:translateX(-100%);transition:transform .25s cubic-bezier(.4,0,.2,1);z-index:150;width:280px;box-shadow:var(--shmd)}
+  #sb.mobile-open{transform:translateX(0)}
+  #sb-overlay{display:block;pointer-events:none}
+  #sb-overlay.open{pointer-events:all}
+  #sb-close{display:block}
+  #hamburger{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--t2)}
+
+  /* Main takes full width */
+  #main{margin-left:0}
+
+  /* Topbar */
+  .topbar{padding:0 12px 0 56px;height:48px;flex-wrap:nowrap;gap:6px;overflow-x:auto}
+  .tb-title{font-size:13px;white-space:nowrap;flex-shrink:0}
+  .tb-actions{flex-wrap:nowrap;overflow-x:auto;gap:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .tb-actions::-webkit-scrollbar{display:none}
+  .tab-btn{padding:4px 10px;font-size:11px;white-space:nowrap;flex-shrink:0}
+
+  /* Content padding */
+  .content{padding:16px 14px}
+
+  /* Grids become single column */
+  .mg4,.mg3,.mg2{grid-template-columns:1fr 1fr}
+  .fg2,.fg3,.fg4{grid-template-columns:1fr}
+  .fg-full{grid-column:1}
+  .rg3,.rg4{grid-template-columns:1fr 1fr}
+  .sc-grid{grid-template-columns:1fr}
+  .reg-sel{grid-template-columns:1fr 1fr}
+  .bg-grid{grid-template-columns:1fr}
+  .scenarios-grid{grid-template-columns:1fr}
+
+  /* Dashboard metrics 2 cols on mobile */
+  .mg4{grid-template-columns:1fr 1fr}
+
+  /* Lots layout stack */
+  .lots-layout{grid-template-columns:1fr;gap:14px}
+
+  /* Metric card font size */
+  .mc-val{font-size:20px}
+
+  /* Form sections */
+  .fs{padding:16px 14px;margin-bottom:14px}
+
+  /* Tables scroll */
+  .tbl-scroll{max-height:260px}
+  .sens-tbl,.tbl,.proj-data{font-size:11px}
+  .sens-tbl th,.tbl th,.proj-data th{padding:6px 8px}
+  .sens-tbl td,.tbl td,.proj-data td{padding:5px 8px}
+
+  /* Travaux rows - stack on mobile */
+  .tw-row.tw-cols-pc{grid-template-columns:1fr 1fr;gap:6px}
+  .tw-hdr{display:none}
+
+  /* Section title */
+  .sec-title{font-size:17px}
+
+  /* Score ring bigger tap area */
+  .score-ring{width:48px;height:48px}
+
+  /* Modal */
+  .mo-box{width:calc(100vw - 32px);padding:20px 16px;max-height:90vh;overflow-y:auto}
+
+  /* Sidebar footer stacked */
+  .sb-foot{gap:5px}
+  .btn-sm{font-size:11px;padding:6px 10px}
+
+  /* Price finder */
+  .pf-box{padding:16px}
+  .price-big{font-size:26px}
+
+  /* Bien cards */
+  .bc{padding:14px}
+  .bc-metrics{gap:6px}
+
+  /* Chart wrapper */
+  .cw{padding:14px}
+
+  /* Result cards 2 col */
+  .rg4{grid-template-columns:1fr 1fr}
+
+  /* Hide long text on mobile breadcrumb */
+  .breadcrumb{font-size:10px}
+
+  /* Comparator table scroll */
+  #mainContent .fs{overflow-x:auto}
+}
+
+@media(max-width:400px){
+  .mg4,.rg4,.rg3{grid-template-columns:1fr}
+  .reg-sel{grid-template-columns:1fr}
+  .mc-val{font-size:18px}
+  .tab-btn{font-size:10px;padding:3px 8px}
+}
+
+
+/* ARTISANS */
+.artisan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:18px}
+.artisan-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:16px;cursor:pointer;transition:all .2s;position:relative}
+.artisan-card:hover{border-color:var(--green);box-shadow:var(--shmd)}
+.artisan-card.selected{border-color:var(--green);background:#F0F7F2}
+body.dark .artisan-card.selected{background:#1A2E22}
+.artisan-name{font-size:14px;font-weight:600;margin-bottom:4px}
+.artisan-spec{font-size:11px;color:var(--green);font-weight:600;margin-bottom:8px}
+.artisan-info{font-size:11px;color:var(--t2);line-height:1.6}
+.artisan-stats{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;gap:14px}
+.artisan-stat{font-size:10px;color:var(--t3);text-align:center}
+.artisan-stat strong{display:block;font-size:14px;font-weight:600;color:var(--text)}
+.artisan-badge{position:absolute;top:12px;right:12px;font-size:9px;padding:2px 7px;border-radius:10px;font-weight:600}
+
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<button id="hamburger" onclick="openSidebar()" aria-label="Menu">☰ Menu</button>
+<div id="sb-overlay" onclick="closeSidebar()"></div>
+<nav id="sb">
+  <button id="sb-close" onclick="closeSidebar()" aria-label="Fermer">✕</button>
+  <div class="sb-head">
+    <div class="logo">Cap <em>Rentier</em></div>
+    <button class="dark-toggle" onclick="toggleDark()" id="darkBtn">🌙 Sombre</button>
+  </div>
+  <div class="sb-actions">
+    <button class="btn-new" onclick="openMoPf()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Nouvel immeuble
+    </button>
+  </div>
+  <div class="sb-list" id="sbList"></div>
+  <div class="sb-foot">
+    <button class="btn-sm" onclick="exportJSON()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Sauvegarder JSON
+    </button>
+    <label for="importJsonFile" class="btn-sm" style="cursor:pointer">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><line x1="12" y1="3" x2="12" y2="15"/><polyline points="7 8 12 3 17 8"/></svg>
+      Importer JSON
+    </label>
+    <input type="file" id="importJsonFile" accept=".json" style="display:none" onchange="importJSON(event)">
+    <label for="importXlsFile" class="btn-sm" style="cursor:pointer;color:var(--green);border-color:var(--green)">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Importer Excel
+    </label>
+    <input type="file" id="importXlsFile" accept=".xlsx,.xls" style="display:none" onchange="importExcel(event)">
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main id="main">
+  <div class="topbar">
+    <div class="tb-title" id="tbTitle">Tableau de bord</div>
+    <div class="tb-actions" id="tbActions"></div>
+  </div>
+  <div class="content" id="mainContent"></div>
+</main>
+
+<!-- MODAL PORTFOLIO -->
+<div class="mo" id="moPf">
+  <div class="mo-box" style="width:560px">
+    <div class="mo-title">Nouvel immeuble</div>
+    <div class="fg fg2">
+      <div class="fgrp"><label>Nom de l'immeuble</label><input type="text" id="pfName" placeholder="Ex: Immeuble Lyon Confluence"></div>
+      <div class="fgrp"><label>Type</label>
+        <select id="pfType">
+          <option value="immeuble">Immeuble de rapport</option>
+          <option value="appartement">Appartement seul</option>
+          <option value="maison">Maison</option>
+          <option value="local">Local commercial</option>
+        </select>
+      </div>
+      <div class="fgrp fg-full"><label>Adresse</label><input type="text" id="pfAdresse" placeholder="12 rue de la Paix"></div>
+      <div class="fgrp"><label>Ville</label><input type="text" id="pfVille" placeholder="Nice"></div>
+      <div class="fgrp"><label>Code postal</label><input type="text" id="pfCp" placeholder="06000"></div>
+      <div class="fgrp"><label>Surface totale (m²)</label><input type="number" id="pfSurface" placeholder="250"></div>
+      <div class="fgrp"><label>Prix d'achat global (€)</label><input type="number" id="pfPrix" placeholder="350000"></div>
+      <div class="fgrp"><label>Stratégie</label>
+        <select id="pfStrategie">
+          <option value="LMNP">LMNP</option>
+          <option value="nu">Location nue</option>
+          <option value="sci-is">SCI à l'IS</option>
+          <option value="micro-bic">Meublé micro-BIC</option>
+        </select>
+      </div>
+      <div class="fgrp"><label>Statut</label>
+        <select id="pfStatut">
+          <option value="prospect">En prospection</option>
+          <option value="actif">Actif</option>
+          <option value="travaux">En travaux</option>
+        </select>
+      </div>
+      <div class="fgrp fg-full"><label>Notes</label><textarea id="pfDesc" rows="2" style="resize:none" placeholder="Notes..."></textarea></div>
+    </div>
+    <div class="mo-acts"><button class="btn-sec" onclick="closeMo('moPf')">Annuler</button><button class="btn-pri" onclick="savePf()">Créer</button></div>
+  </div>
+</div>
+
+<!-- MODAL BIEN -->
+<div class="mo" id="moBien">
+  <div class="mo-box">
+    <div class="mo-title" id="moBienTitle">Nouveau lot</div>
+    <div class="fg fg2">
+      <div class="fgrp"><label>Nom du lot</label><input type="text" id="bNom" placeholder="Appt 2ème gauche"></div>
+      <div class="fgrp"><label>Type</label>
+        <select id="bType">
+          <option value="appartement">Appartement</option>
+          <option value="maison">Maison</option>
+          <option value="immeuble">Immeuble de rapport</option>
+          <option value="local">Local commercial</option>
+          <option value="terrain">Terrain</option>
+        </select>
+      </div>
+      <div class="fgrp fg-full"><label>Adresse</label><input type="text" id="bAdresse" placeholder="123 rue de la Paix, 75001 Paris"></div>
+      <div class="fgrp"><label>Ville (auto depuis immeuble)</label><input type="text" id="bVille" placeholder="Auto"></div>
+      <div class="fgrp"><label>Surface (m²)</label><input type="number" id="bSurface" placeholder="65"></div>
+      <div class="fgrp"><label>Année construction</label><input type="number" id="bAnnee" placeholder="1985"></div>
+      <div class="fgrp"><label>Statut</label>
+        <select id="bStatut">
+          <option value="prospect">En prospection</option>
+          <option value="actif">Actif</option>
+          <option value="travaux">En travaux</option>
+        </select>
+      </div>
+    </div>
+    <div class="mo-acts"><button class="btn-sec" onclick="closeMo('moBien')">Annuler</button><button class="btn-pri" onclick="saveBien()">Créer</button></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let S = {
+  portfolios: [], artisans: [], dark: false,
+  activePid: null, activeBid: null, activeTab: 'dashboard',
+  openPids: {}, selectedLotIdx: 0, selectedScenario: 'realiste',
+  foyer: { revenu: 60000, parts: 1, tmiManuel: null, ps: 17.2 }
+};
+
+// ═══════════════════════════════════════════
+// PERSIST
+// ═══════════════════════════════════════════
+const save = () => localStorage.setItem('cap_rentier_v2', JSON.stringify(S));
+const load = () => { const d = localStorage.getItem('cap_rentier_v2'); if (d) S = {...S, ...JSON.parse(d)}; };
+const uid = () => Date.now().toString(36) + Math.random().toString(36).substr(2,5);
+const fmt = n => Math.round(n).toLocaleString('fr-FR');
+const fmtD = (n, d=2) => parseFloat(n).toFixed(d);
+const fmtE = n => (n >= 0 ? '+' : '') + fmt(n) + ' €';
+
+function exportJSON() {
+  const b = new Blob([JSON.stringify(S, null, 2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(b);
+  a.download = `cap_rentier_${new Date().toISOString().split('T')[0]}.json`; a.click();
+}
+function importJSON(e) {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => { try { S = JSON.parse(ev.target.result); save(); render(); } catch { alert('Fichier invalide'); } };
+  r.readAsText(f);
+}
+
+// ═══════════════════════════════════════════
+// EXCEL IMPORT
+// ═══════════════════════════════════════════
+function importExcel(e) {
+  const f = e.target.files[0]; if (!f) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const wb = XLSX.read(ev.target.result, {type:'array'});
+
+      // Helper: read a sheet section starting from the real header row
+      function readSheet(nameContains, idPrefix) {
+        const sn = wb.SheetNames.find(n => n.includes(nameContains));
+        if (!sn) return [];
+        const ws = wb.Sheets[sn];
+        const raw = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+        const results = [];
+        let headers = null;
+        for (let i = 0; i < raw.length; i++) {
+          const row = raw[i];
+          const first = String(row[0] || '').trim();
+          // Detect header rows: start with 'ID'
+          if (first.startsWith('ID')) {
+            // If idPrefix specified, only use this header if it matches
+            if (!idPrefix || first === 'ID ' + idPrefix || first === 'ID' + idPrefix) {
+              headers = row;
+            } else if (!idPrefix) {
+              headers = row;
+            }
+            continue;
+          }
+          if (!headers) continue;
+          if (!first || first === '') continue;
+          // Only collect rows matching the idPrefix filter
+          if (idPrefix && !first.startsWith(idPrefix.charAt(0).toUpperCase())) continue;
+          const obj = {};
+          headers.forEach((h, j) => { if (h) obj[String(h)] = row[j] ?? ''; });
+          results.push(obj);
+        }
+        return results;
+      }
+
+      // Read foyer fiscal (special structure: label in col A, value in col D)
+      function readFoyer() {
+        const sn = wb.SheetNames.find(n => n.includes('Foyer'));
+        if (!sn) return;
+        const ws = wb.Sheets[sn];
+        const raw = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+        raw.forEach(row => {
+          const label = String(row[0] || '');
+          const val = row[3];
+          if (label.includes('Revenu annuel')) S.foyer.revenu = parseFloat(val) || S.foyer.revenu;
+          if (label.includes('parts fiscales')) S.foyer.parts = parseFloat(val) || S.foyer.parts;
+          if (label.includes('Prélèvements')) S.foyer.ps = parseFloat(val) || S.foyer.ps;
+        });
+      }
+
+      readFoyer();
+
+      const pfRows = readSheet('Portefeuille', 'Portefeuille').filter(r => r['ID Portefeuille'] && String(r['ID Portefeuille']).startsWith('P'));
+      const bienRows = readSheet('Portefeuille', 'Bien').filter(r => r['ID Bien'] && String(r['ID Bien']).startsWith('B'));
+      const acqRows = readSheet('Acquisition');
+      const twRows = readSheet('Travaux');
+      const lotRows = readSheet('Lots');
+      const locRows = readSheet('Location');
+
+      let pfCount = 0;
+      pfRows.forEach(pr => {
+        if (!pr['Nom du portefeuille']) return;
+        // Avoid duplicates
+        if (S.portfolios.find(p => p.xlsId === pr['ID Portefeuille'])) return;
+        const portfolio = { id: uid(), xlsId: pr['ID Portefeuille'], name: String(pr['Nom du portefeuille']), desc: String(pr['Description'] || ''), biens: [] };
+
+        bienRows.filter(b => String(b['ID Portefeuille']) === String(pr['ID Portefeuille'])).forEach(br => {
+          const bienId = String(br['ID Bien']);
+          const acq = acqRows.find(r => String(r['ID Bien']) === bienId) || {};
+          const loc = locRows.find(r => String(r['ID Bien']) === bienId) || {};
+
+          const bienType = String(br['Type'] || 'appartement');
+          const bien = {
+            id: uid(), xlsId: bienId,
+            nom: String(br['Nom du bien'] || 'Bien importé'),
+            type: bienType,
+            adresse: String(br['Adresse'] || ''),
+            ville: String(br['Ville'] || ''),
+            surface: parseFloat(br['Surface (m²)']) || 0,
+            annee: parseInt(br['Année construction']) || 0,
+            statut: String(br['Statut'] || 'prospect'),
+            notes: String(br['Notes'] || ''),
+            data: defaultData(bienType),
+            createdAt: Date.now()
+          };
+
+          // Acquisition
+          if (acq['Prix achat (€)']) bien.data.acq.prixAchat = parseFloat(acq['Prix achat (€)']) || 0;
+          if (acq['Frais notaire (%)']) bien.data.acq.fraisNotaire = parseFloat(acq['Frais notaire (%)']) || 7.5;
+          if (acq['Apport (€)']) bien.data.acq.apport = parseFloat(acq['Apport (€)']) || 0;
+          if (acq['Montant emprunté (€)']) bien.data.emp.montant = parseFloat(acq['Montant emprunté (€)']) || 0;
+          if (acq['Taux nominal (%)']) bien.data.emp.taux = parseFloat(acq['Taux nominal (%)']) || 3.8;
+          if (acq['Durée (ans)']) bien.data.emp.duree = parseInt(acq['Durée (ans)']) || 20;
+          if (acq['Taux assurance (%/an)']) bien.data.emp.assurance = parseFloat(acq['Taux assurance (%/an)']) || 0.12;
+
+          // Location
+          if (loc['Taux occupation (%)']) bien.data.loc.tauxOcc = parseFloat(loc['Taux occupation (%)']) || 92;
+          if (loc['Revalo loyer/an (%)']) bien.data.loc.revalo = parseFloat(loc['Revalo loyer/an (%)']) || 1.5;
+          if (loc['Frais gestion (%)']) bien.data.loc.fraisGestion = parseFloat(loc['Frais gestion (%)']) || 0;
+          if (loc['Taxe foncière (€/an)']) bien.data.loc.taxeFonciere = parseFloat(loc['Taxe foncière (€/an)']) || 0;
+          if (loc['Assurance PNO (€/an)']) bien.data.loc.pno = parseFloat(loc['Assurance PNO (€/an)']) || 0;
+          if (loc['Charges copro (€/mois)']) bien.data.loc.copro = parseFloat(loc['Charges copro (€/mois)']) || 0;
+          if (loc['Loyer bas scénario (€)']) bien.data.loc.loyerBas = parseFloat(loc['Loyer bas scénario (€)']) || 0;
+          if (loc['Loyer haut scénario (€)']) bien.data.loc.loyerHaut = parseFloat(loc['Loyer haut scénario (€)']) || 0;
+          if (loc['Occ. min scénario (%)']) bien.data.loc.occBas = parseFloat(loc['Occ. min scénario (%)']) || 80;
+          if (loc['Occ. max scénario (%)']) bien.data.loc.occHaut = parseFloat(loc['Occ. max scénario (%)']) || 98;
+          if (loc['Régime fiscal']) bien.data.fiscal.regime = String(loc['Régime fiscal']);
+
+          // Lots
+          const bienLots = lotRows.filter(l => String(l['ID Bien']) === bienId);
+          if (!bien.data.lots) bien.data.lots = [];
+          bienLots.forEach(l => {
+            const lot = {
+              id: uid(), xlsId: String(l['ID Lot'] || ''),
+              nom: String(l['Nom du lot'] || ''),
+              type: String(l['Type'] || 'T2'),
+              surface: parseFloat(l['Surface (m²)']) || 0,
+              loyer: parseFloat(l['Loyer HC (€/mois)']) || 0,
+              charges: parseFloat(l['Charges loc. (€/mois)']) || 0,
+              statut: String(l['Statut'] || 'vacant'),
+              locataire: String(l['Locataire'] || ''),
+              dateEntree: String(l['Date entrée'] || ''),
+              depotGarantie: parseFloat(l['Dépôt garantie (€)']) || 0,
+              loyerApresTravaux: parseFloat(l['Loyer après travaux (€)']) || 0,
+              notes: String(l['Notes'] || ''),
+              travaux: [], _open: false
+            };
+            bien.data.lots.push(lot);
+          });
+
+          // Auto-set loyer from lots for immeuble
+          if (bienType === 'immeuble' && bien.data.lots.length > 0) {
+            bien.data.loc.loyer = bien.data.lots.reduce((s,l) => s+(parseFloat(l.loyer)||0), 0);
+          }
+
+          // Travaux
+          twRows.filter(t => String(t['ID Bien']) === bienId).forEach(t => {
+            const tw = {
+              id: uid(),
+              nom: String(t['Poste / Description'] || ''),
+              cat: String(t['Catégorie'] || 'Autre'),
+              estime: parseFloat(t['Estimé (€)']) || 0,
+              reel: parseFloat(t['Réel (€)']) || 0,
+              duree: parseFloat(t['Durée travaux (sem.)']) || 0,
+              loyerApresTravaux: parseFloat(t['Loyer estimé APRÈS travaux (€)']) || 0,
+              artisan: String(t['Artisan / Contact'] || ''),
+              statut: String(t['Statut'] || 'planifié'),
+              notes: String(t['Notes'] || ''),
+              valide: String(t['Statut']) === 'terminé'
+            };
+            const lotId = String(t['ID Lot (vide=parties communes)'] || '').trim();
+            if (lotId && bien.data.lots) {
+              const lot = bien.data.lots.find(l => l.xlsId === lotId);
+              if (lot) { lot.travaux.push(tw); return; }
+            }
+            if (!bien.data.travauxPC) bien.data.travauxPC = [];
+            bien.data.travauxPC.push(tw);
+          });
+
+          portfolio.biens.push(bien);
+        });
+
+        S.portfolios.push(portfolio);
+        S.openPids[portfolio.id] = true;
+        pfCount++;
+      });
+
+      save(); render();
+      alert('Import réussi ! ' + pfCount + ' portefeuille(s) chargé(s) avec ' + S.portfolios.flatMap(p=>p.biens).length + ' bien(s).');
+    } catch(err) {
+      console.error(err);
+      alert('Erreur import Excel : ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(f);
+  e.target.value = '';
+}
+
+// ═══════════════════════════════════════════
+// DEFAULT DATA
+// ═══════════════════════════════════════════
+function defaultData(type) {
+  return {
+    acq: { prixAchat: 0, fraisNotaire: 7.5, apport: 0 },
+    emp: { montant: 0, taux: 3.8, duree: 20, assurance: 0.12 },
+    travauxPC: [],
+    lots: type === 'immeuble' ? [] : null,
+    loc: { loyer: 0, charges: 0, tauxOcc: 92, revalo: 1.5, fraisGestion: 0, taxeFonciere: 0, pno: 0, copro: 0, loyerBas: 0, loyerHaut: 0, occBas: 80, occHaut: 98 },
+    fiscal: { regime: 'nu' }
+  };
+}
+
+// ═══════════════════════════════════════════
+// CALCULATIONS
+// ═══════════════════════════════════════════
+function calcMens(montant, taux, duree, assurance) {
+  if (!montant || !duree) return 0;
+  const r = (taux / 100) / 12, n = duree * 12;
+  const credit = r > 0 ? montant * (r * Math.pow(1+r,n)) / (Math.pow(1+r,n)-1) : montant/n;
+  return credit + (montant * assurance / 100 / 12);
+}
+
+function calcTMI(revenu, parts) {
+  const rpp = revenu / (parts || 1);
+  if (rpp <= 11294) return 0;
+  if (rpp <= 27478) return 11;
+  if (rpp <= 78571) return 30;
+  if (rpp <= 168994) return 41;
+  return 45;
+}
+
+function calcBien(bien, overrides = {}) {
+  const d = bien.data;
+  const acq = d.acq, emp = d.emp;
+  const loc = {...d.loc, ...overrides};
+
+  // Prix: use portfolio global price if bien has no individual price
+  const portfolio = S.portfolios.find(p => p.biens && p.biens.some(b => b === bien));
+  const prixAchat = (acq.prixAchat && acq.prixAchat > 0) ? acq.prixAchat : (portfolio ? (portfolio.prixAchat || 0) : 0);
+  const fraisNotaire = prixAchat * (acq.fraisNotaire / 100);
+  const travauxPC = (d.travauxPC || []).reduce((s,t) => s + (t.valide ? (parseFloat(t.reel)||0) : (parseFloat(t.estime)||0)), 0);
+  const travauxLots = d.lots ? d.lots.flatMap(l => l.travaux || []).reduce((s,t) => s + (t.valide ? (parseFloat(t.reel)||0) : (parseFloat(t.estime)||0)), 0) : 0;
+  const totalTravaux = travauxPC + travauxLots;
+  const totalInvesti = prixAchat + fraisNotaire + totalTravaux;
+  const mensualite = calcMens(emp.montant || 0, emp.taux || 3.8, emp.duree || 20, emp.assurance || 0.12);
+
+  // Loyer mensuel
+  let loyerMensuel = 0;
+  if (bien.type === 'immeuble' && d.lots && d.lots.length > 0) {
+    loyerMensuel = d.lots.reduce((s, l) => s + (parseFloat(l.loyer) || 0), 0);
+  } else {
+    loyerMensuel = loc.loyer || 0;
+  }
+
+  const tauxOcc = (loc.tauxOcc || 92) / 100;
+  const loyerBrutAnnuel = loyerMensuel * 12 * tauxOcc;
+
+  // Charges annuelles
+  const fraisGestion = loyerBrutAnnuel * (loc.fraisGestion || 0) / 100;
+  // Auto-estimation si pas saisi
+  const taxeFonciere = loc.taxeFonciere || Math.round(loyerMensuel * 0.9);
+  const pno = loc.pno || Math.round(prixAchat * 0.0015);
+  const copro = (loc.copro || 0) * 12;
+  const chargesTotal = fraisGestion + taxeFonciere + pno + copro;
+  const revenus = loyerBrutAnnuel - chargesTotal;
+  const creditAnnuel = mensualite * 12;
+  const cashflowAnnuel = revenus - creditAnnuel;
+  const cashflowMensuel = cashflowAnnuel / 12;
+
+  const rendBrut = prixAchat > 0 ? (loyerMensuel * 12 / prixAchat) * 100 : 0;
+  const rendNet = totalInvesti > 0 ? (revenus / totalInvesti) * 100 : 0;
+
+  // Fiscal
+  const tmi = S.foyer.tmiManuel !== null ? S.foyer.tmiManuel : calcTMI(S.foyer.revenu || 60000, S.foyer.parts || 1);
+  const ps = (S.foyer.ps || 17.2) / 100;
+  let impot = 0;
+  const regime = d.fiscal.regime;
+  if (regime === 'nu') impot = Math.max(0, revenus) * (tmi/100 + ps);
+  else if (regime === 'micro-bic') impot = loyerBrutAnnuel * 0.5 * (tmi/100 + ps);
+  else if (regime === 'lmnp-reel') {
+    const amort = totalInvesti * 0.025;
+    impot = Math.max(0, revenus - amort) * (tmi/100 + ps);
+  } else if (regime === 'sci-is') {
+    const benefice = Math.max(0, revenus - creditAnnuel);
+    impot = benefice <= 42500 ? benefice * 0.15 : 42500 * 0.15 + (benefice - 42500) * 0.25;
+  }
+
+  const rendNetNet = totalInvesti > 0 ? ((revenus - impot) / totalInvesti) * 100 : 0;
+  const cashflowNetNet = (revenus - creditAnnuel - impot) / 12;
+
+  // Score /100
+  let score = 0;
+  if (rendNet >= 7) score += 30; else if (rendNet >= 5) score += 20; else if (rendNet >= 3) score += 10;
+  if (cashflowMensuel >= 300) score += 30; else if (cashflowMensuel >= 100) score += 20; else if (cashflowMensuel >= 0) score += 10;
+  const apportRatio = totalInvesti > 0 ? (acq.apport || 0) / totalInvesti * 100 : 0;
+  if (apportRatio >= 20) score += 10;
+  if (mensualite > 0 && loyerMensuel > 0 && mensualite / loyerMensuel <= 0.7) score += 10;
+  const tauxOccScore = loc.tauxOcc || 92;
+  if (tauxOccScore >= 90) score += 20; else if (tauxOccScore >= 80) score += 10;
+
+  const scoreLabel = score >= 80 ? 'Coup de maître' : score >= 60 ? 'Excellent' : score >= 40 ? 'Correct' : score >= 20 ? 'Médiocre' : 'À éviter';
+
+  // Alertes
+  const alerts = [];
+  if (cashflowMensuel < 0) alerts.push({type:'warn', msg:`Effort d'épargne de ${fmt(Math.abs(cashflowMensuel))} €/mois nécessaire`});
+  if (rendBrut > 0 && rendBrut < 4) alerts.push({type:'warn', msg:`Rendement brut faible (${fmtD(rendBrut)}%) — cible recommandée : > 6%`});
+  if (mensualite > 0 && loyerMensuel > 0 && mensualite / loyerMensuel > 0.85) alerts.push({type:'err', msg:`Mensualité = ${fmtD(mensualite/loyerMensuel*100)}% du loyer — risque élevé en cas de vacance`});
+  if (apportRatio < 10 && totalInvesti > 0) alerts.push({type:'warn', msg:`Apport faible (${fmtD(apportRatio)}%) — les banques demandent généralement 10-20%`});
+  if (cashflowMensuel >= 200) alerts.push({type:'ok', msg:`Cash-flow positif de ${fmt(cashflowMensuel)} €/mois — bien autofinancé`});
+
+  return {
+    prixAchat, fraisNotaire, totalTravaux, totalInvesti, mensualite,
+    loyerMensuel, loyerBrutAnnuel, chargesTotal, fraisGestion, taxeFonciere, pno, copro,
+    revenus, creditAnnuel, cashflowAnnuel, cashflowMensuel,
+    rendBrut, rendNet, rendNetNet, cashflowNetNet, impot, tmi,
+    score, scoreLabel, alerts,
+    travauxPC, travauxLots
+  };
+}
+
+function calcAmort(montant, taux, duree) {
+  const rows = [], r = (taux/100)/12, n = duree*12;
+  const mens = r > 0 ? montant*(r*Math.pow(1+r,n))/(Math.pow(1+r,n)-1) : montant/n;
+  let cap = montant;
+  for (let i = 1; i <= Math.min(n, 360); i++) {
+    const int = cap * r, amort = mens - int;
+    cap = Math.max(0, cap - amort);
+    rows.push({mois:i, annee:Math.ceil(i/12), mens, int, amort, cap});
+  }
+  return rows;
+}
+
+// ═══════════════════════════════════════════
+// DARK MODE
+// ═══════════════════════════════════════════
+function toggleDark() {
+  S.dark = !S.dark; save();
+  document.body.classList.toggle('dark', S.dark);
+  document.getElementById('darkBtn').textContent = S.dark ? '☀️ Clair' : '🌙 Sombre';
+  // Rebuild charts if needed
+  if (S.activeBid && (S.activeTab === 'projections' || S.activeTab === 'decision')) render();
+}
+
+// ═══════════════════════════════════════════
+// SIDEBAR
+// ═══════════════════════════════════════════
+function typeIcon(t) { return {appartement:'🏠',maison:'🏡',immeuble:'🏢',local:'🏪',terrain:'🌿'}[t]||'🏠'; }
+
+function renderSidebar() {
+  const el = document.getElementById('sbList');
+  let html = '';
+  if (S.portfolios.length === 0) {
+    el.innerHTML = `<div class="muted text-sm" style="padding:16px 14px">Aucun portefeuille.<br>Créez-en un ci-dessus.</div>`;
+    return;
+  }
+  html += `<div class="sec-lbl">Portefeuilles</div>`;
+  S.portfolios.forEach(p => {
+    const open = S.openPids[p.id];
+    html += `<div class="pg-head ${open?'open':''}" onclick="togglePg('${p.id}')">
+      <div class="pg-icon">${p.type==='appartement'?'🏠':p.type==='maison'?'🏡':p.type==='local'?'🏪':'🏢'}</div>
+      <span class="pg-name">${p.name}${p.ville?' — '+p.ville:''}</span>
+      <div class="pg-acts">
+        <button class="ib-btn" onclick="event.stopPropagation();openAddBien('${p.id}')" title="Ajouter">+</button>
+        <button class="ib-btn" onclick="event.stopPropagation();deletePf('${p.id}')" title="Supprimer">×</button>
+      </div>
+      <span class="chev">▶</span>
+    </div>`;
+    if (open) {
+      html += `<div class="pg-items">`;
+      if (p.biens.length === 0) html += `<div class="text-xs muted" style="padding:4px 8px">Aucun bien — <span style="cursor:pointer;color:var(--green)" onclick="openAddBien('${p.id}')">+ Ajouter</span></div>`;
+      p.biens.forEach(b => {
+        const c = calcBien(b);
+        const cf = c.cashflowMensuel;
+        const active = S.activeBid === b.id;
+        let bdg = '', bdgCls = '';
+        if (c.prixAchat > 0) {
+          if (cf > 200) { bdg = `+${fmt(cf)}€`; bdgCls = 'bg-g'; }
+          else if (cf >= 0) { bdg = `+${fmt(cf)}€`; bdgCls = 'bg-w'; }
+          else { bdg = `${fmt(cf)}€`; bdgCls = 'bg-r'; }
+        }
+        html += `<div class="b-item ${active?'active':''}" onclick="closeSidebar();selBien('${p.id}','${b.id}')">
+          <span style="font-size:12px">${typeIcon(b.type)}</span>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${b.nom}</span>
+          ${bdg ? `<span class="bdg ${bdgCls}">${bdg}</span>` : ''}
+        </div>`;
+      });
+      html += `<div style="padding:3px 8px 5px"><span class="text-xs muted" style="cursor:pointer;color:var(--green)" onclick="openAddBien('${p.id}')">+ Ajouter un bien</span></div>`;
+      html += `</div>`;
+    }
+  });
+  html = `<div style="margin:4px 6px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:4px">
+    <div class="nav-item ${!S.activeBid && S.activeTab==='dashboard'?'active':''}" onclick="closeSidebar();showDash()">📊 Tableau de bord</div>
+    <div class="nav-item ${S.activeTab==='foyer'?'active':''}" onclick="closeSidebar();showFoyer()">👤 Foyer fiscal</div>
+    <div class="nav-item ${S.activeTab==='artisans'?'active':''}" onclick="closeSidebar();showArtisans()">🔧 Artisans</div>
+    <div class="nav-item ${S.activeTab==='compare'?'active':''}" onclick="closeSidebar();showCompare()">⚖️ Comparateur</div>
+  </div>` + html;
+  el.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════
+// NAV
+// ═══════════════════════════════════════════
+function togglePg(id) { S.openPids[id] = !S.openPids[id]; save(); renderSidebar(); }
+function deletePf(id) {
+  if (!confirm('Supprimer ce portefeuille ?')) return;
+  S.portfolios = S.portfolios.filter(p => p.id !== id);
+  if (S.activePid === id) { S.activePid = null; S.activeBid = null; S.activeTab = 'dashboard'; }
+  save(); render();
+}
+function showDash() { S.activeBid = null; S.activePid = null; S.activeTab = 'dashboard'; save(); render(); }
+function showFoyer() { S.activeBid = null; S.activeTab = 'foyer'; save(); render(); }
+function showArtisans() { S.activeBid = null; S.activeTab = 'artisans'; save(); render(); }
+function showCompare() { S.activeBid = null; S.activeTab = 'compare'; save(); render(); }
+function selBien(pid, bid) { S.activePid = pid; S.activeBid = bid; S.activeTab = 'synthese'; save(); render(); }
+function setTab(t) { S.activeTab = t; save(); render(); }
+function getBien() {
+  const p = S.portfolios.find(p => p.id === S.activePid);
+  return p?.biens.find(b => b.id === S.activeBid);
+}
+
+// ═══════════════════════════════════════════
+// MODALS
+// ═══════════════════════════════════════════
+function openMoPf() { document.getElementById('pfName').value=''; document.getElementById('pfDesc').value=''; document.getElementById('moPf').classList.add('open'); }
+function openMoBien() { document.getElementById('moBien').classList.add('open'); }
+function closeMo(id) { document.getElementById(id).classList.remove('open'); }
+let _currentPid = null;
+function openAddBien(pid) { _currentPid = pid; document.getElementById('moBienTitle').textContent = 'Nouveau lot'; ['bNom','bAdresse','bVille','bSurface','bAnnee'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; }); openMoBien(); }
+
+function savePf() {
+  const name = document.getElementById('pfName').value.trim(); if (!name) return;
+  const g = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+  const p = {
+    id: uid(), name, type: g('pfType') || 'immeuble',
+    adresse: g('pfAdresse'), ville: g('pfVille'), cp: g('pfCp'),
+    surface: parseFloat(g('pfSurface')) || 0,
+    prixAchat: parseFloat(g('pfPrix')) || 0,
+    strategie: g('pfStrategie') || 'LMNP',
+    statut: g('pfStatut') || 'prospect',
+    desc: g('pfDesc'),
+    biens: [], createdAt: Date.now()
+  };
+  S.portfolios.push(p); S.openPids[p.id] = true;
+  save(); closeMo('moPf'); renderSidebar();
+}
+function saveBien() {
+  const nom = document.getElementById('bNom').value.trim(); if (!nom) return;
+  const type = document.getElementById('bType').value;
+  const bien = {
+    id: uid(), nom, type,
+    adresse: document.getElementById('bAdresse').value,
+    ville: document.getElementById('bVille').value,
+    surface: parseFloat(document.getElementById('bSurface').value) || 0,
+    annee: parseInt(document.getElementById('bAnnee').value) || 0,
+    statut: document.getElementById('bStatut').value,
+    data: defaultData(type), createdAt: Date.now()
+  };
+  const p = S.portfolios.find(p => p.id === _currentPid);
+  if (p) p.biens.push(bien);
+  save(); closeMo('moBien'); renderSidebar();
+  ['bNom','bAdresse','bVille'].forEach(id => document.getElementById(id).value = '');
+}
+function deleteBien(pid, bid) {
+  if (!confirm('Supprimer ce bien ?')) return;
+  const p = S.portfolios.find(p => p.id === pid);
+  if (p) p.biens = p.biens.filter(b => b.id !== bid);
+  S.activeBid = null; S.activePid = null; S.activeTab = 'dashboard';
+  save(); render();
+}
+
+// ═══════════════════════════════════════════
+// RENDER ROUTER
+// ═══════════════════════════════════════════
+function render() {
+  document.body.classList.toggle('dark', S.dark);
+  document.getElementById('darkBtn').textContent = S.dark ? '☀️ Clair' : '🌙 Sombre';
+  renderSidebar();
+  if (S.activeTab === 'foyer') { renderFoyer(); return; }
+  if (S.activeTab === 'artisans') { renderArtisans(); return; }
+  if (S.activeTab === 'compare') { renderCompare(); return; }
+  if (!S.activeBid) { renderDashboard(); return; }
+  const p = S.portfolios.find(p => p.id === S.activePid);
+  const b = p?.biens.find(b => b.id === S.activeBid);
+  if (!b) { renderDashboard(); return; }
+
+  document.getElementById('tbTitle').textContent = b.nom;
+  const tabs = ['synthese','acquisition','travaux','location','fiscal','decision','projections'];
+  const tabLabels = ['Synthèse','Acquisition','Travaux','Location','Fiscal','Décision','Projections'];
+  if (b.type === 'immeuble') { tabs.splice(3, 0, 'lots'); tabLabels.splice(3, 0, 'Lots'); }
+  document.getElementById('tbActions').innerHTML = tabs.map((t,i) =>
+    `<button class="tab-btn ${S.activeTab===t?'active':''}" onclick="setTab('${t}')">${tabLabels[i]}</button>`
+  ).join('') + `<button class="ib-btn" onclick="deleteBien('${p.id}','${b.id}')" title="Supprimer" style="padding:5px 8px;font-size:13px;border:1px solid var(--border);border-radius:var(--rsm)">🗑</button>`;
+
+  if (S.activeTab === 'synthese') renderSynthese(b, p);
+  else if (S.activeTab === 'acquisition') renderAcquisition(b);
+  else if (S.activeTab === 'travaux') renderTravaux(b);
+  else if (S.activeTab === 'lots') renderLots(b);
+  else if (S.activeTab === 'location') renderLocation(b);
+  else if (S.activeTab === 'fiscal') renderFiscal(b);
+  else if (S.activeTab === 'decision') renderDecision(b);
+  else if (S.activeTab === 'projections') renderProjections(b);
+}
+
+function updateBienField(path, val, numericParse = true) {
+  const b = getBien(); if (!b) return;
+  const parts = path.split('.');
+  let obj = b.data;
+  parts.slice(0,-1).forEach(k => obj = obj[k]);
+  obj[parts[parts.length-1]] = numericParse ? (parseFloat(val) || 0) : val;
+  save(); renderSidebar();
+}
+
+// ═══════════════════════════════════════════
+// SCORE RING
+// ═══════════════════════════════════════════
+function scoreRing(score, label) {
+  const r = 24, circ = 2 * Math.PI * r;
+  const filled = (score / 100) * circ;
+  const color = score >= 80 ? '#3D6B4F' : score >= 60 ? '#2196F3' : score >= 40 ? '#C17B3E' : '#C0392B';
+  return `<div class="flex items-c gap-12">
+    <div class="score-ring">
+      <svg width="56" height="56" viewBox="0 0 56 56">
+        <circle cx="28" cy="28" r="${r}" fill="none" stroke="var(--border)" stroke-width="4"/>
+        <circle cx="28" cy="28" r="${r}" fill="none" stroke="${color}" stroke-width="4" stroke-dasharray="${filled} ${circ}" stroke-linecap="round"/>
+      </svg>
+      <div class="score-num" style="color:${color}">${score}</div>
+    </div>
+    <div>
+      <div style="font-size:16px;font-weight:600;color:${color}">${label}</div>
+      <div class="text-xs muted">Score de rentabilité /100</div>
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════
+function renderDashboard() {
+  document.getElementById('tbTitle').textContent = 'Tableau de bord';
+  document.getElementById('tbActions').innerHTML = '';
+  const allBiens = S.portfolios.flatMap(p => p.biens);
+  const calcs = allBiens.map(b => ({b, c: calcBien(b)})).filter(x => x.c.prixAchat > 0);
+
+  if (allBiens.length === 0) {
+    document.getElementById('mainContent').innerHTML = `<div class="empty"><div class="empty-icon">🏘</div><div class="empty-title">Bienvenue sur Cap Rentier</div><div class="empty-sub">Créez un portefeuille et ajoutez vos premiers biens<br>pour voir apparaître votre tableau de bord.</div></div>`;
+    return;
+  }
+
+  const totPat = calcs.reduce((s,x) => s + x.c.prixAchat, 0);
+  const totCF = calcs.reduce((s,x) => s + x.c.cashflowMensuel, 0);
+  const totEmp = calcs.reduce((s,x) => s + (x.b.data.emp.montant||0), 0);
+  const rendMoy = calcs.length ? calcs.reduce((s,x) => s + x.c.rendNet, 0) / calcs.length : 0;
+  const scoreGlobal = calcs.length ? Math.round(calcs.reduce((s,x) => s + x.c.score, 0) / calcs.length) : 0;
+
+  document.getElementById('mainContent').innerHTML = `
+  <div class="mg mg4">
+    <div class="mc"><div class="mc-lbl">Patrimoine brut</div><div class="mc-val">${fmt(totPat)} €</div><div class="mc-sub">${calcs.length} bien(s) renseigné(s)</div></div>
+    <div class="mc"><div class="mc-lbl">Cash-flow mensuel total</div><div class="mc-val ${totCF>=0?'pos':'neg'}">${fmtE(Math.round(totCF))}</div><div class="mc-sub">Après crédit et charges</div></div>
+    <div class="mc"><div class="mc-lbl">Encours crédit</div><div class="mc-val">${fmt(totEmp)} €</div></div>
+    <div class="mc mc-hl"><div class="mc-lbl">Rendement net moyen</div><div class="mc-val">${fmtD(rendMoy)} %</div><div class="mc-sub">Après toutes charges</div></div>
+  </div>
+  <div style="margin-bottom:16px">${scoreRing(scoreGlobal, scoreGlobal >= 80 ? 'Portefeuille excellent' : scoreGlobal >= 60 ? 'Bon portefeuille' : 'À optimiser')}</div>
+  <div class="sec-title">Mes biens</div>
+  <div class="bg-grid">
+    ${allBiens.map(b => {
+      const pid = S.portfolios.find(p => p.biens && p.biens.includes(b))?.id;
+      const pf = S.portfolios.find(p => p.id === pid);
+      const c = calcBien(b);
+      const hasTravaux = (b.data.travauxPC||[]).length + (b.data.lots ? b.data.lots.flatMap(l=>l.travaux||[]).length : 0);
+      const travDone = (b.data.travauxPC||[]).filter(t=>t.valide).length + (b.data.lots ? b.data.lots.flatMap(l=>l.travaux||[]).filter(t=>t.valide).length : 0);
+      return `<div class="bc" onclick="selBien('${pid}','${b.id}')">
+        <div class="bc-head">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="bc-icon">${typeIcon(b.type)}</div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div class="score-ring" style="width:32px;height:32px">
+                <svg width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" fill="none" stroke="var(--border)" stroke-width="3"/><circle cx="16" cy="16" r="12" fill="none" stroke="${c.score>=60?'#3D6B4F':c.score>=40?'#C17B3E':'#C0392B'}" stroke-width="3" stroke-dasharray="${(c.score/100)*75.4} 75.4" stroke-linecap="round" transform="rotate(-90 16 16)"/></svg>
+                <div class="score-num" style="font-size:9px;color:${c.score>=60?'#3D6B4F':c.score>=40?'#C17B3E':'#C0392B'}">${c.score}</div>
+              </div>
+            </div>
+          </div>
+          <span class="bc-status s-${b.statut}">${b.statut}</span>
+        </div>
+        <div class="bc-name">${b.nom}</div>
+        <div class="bc-addr">${b.adresse||b.ville||'—'} · ${b.surface||'—'} m²</div>
+        ${hasTravaux > 0 ? `<div class="bc-travaux">
+          <div class="flex just-b" style="font-size:10px"><span>🔨 Travaux ${travDone}/${hasTravaux} validés</span><span style="font-weight:600">${fmt(c.travauxPC + c.travauxLots)} €</span></div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${hasTravaux>0?Math.round(travDone/hasTravaux*100):0}%;background:${travDone===hasTravaux?'var(--green)':'var(--gold)'}"></div></div>
+        </div>` : ''}
+        <div class="bc-metrics">
+          <div><div class="bcm-lbl">Rend. brut</div><div class="bcm-val">${fmtD(c.rendBrut)}%</div></div>
+          <div><div class="bcm-lbl">Rend. net</div><div class="bcm-val">${fmtD(c.rendNet)}%</div></div>
+          <div><div class="bcm-lbl">Cash-flow</div><div class="bcm-val ${c.cashflowMensuel>=0?'g':'b'}">${c.cashflowMensuel>=0?'+':''}${fmt(c.cashflowMensuel)}€/m</div></div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>
+  ${calcs.length >= 2 ? `<div class="cw"><div class="cw-title">Rendements comparatifs</div><div style="position:relative;height:200px"><canvas id="chartDash" role="img" aria-label="Comparatif rendements">Rendements.</canvas></div></div>` : ''}`;
+
+  if (calcs.length >= 2) {
+    setTimeout(() => {
+      const ctx = document.getElementById('chartDash'); if (!ctx) return;
+      new Chart(ctx, { type:'bar', data:{ labels:calcs.map(x=>x.b.nom), datasets:[
+        {label:'Rend. brut %', data:calcs.map(x=>parseFloat(fmtD(x.c.rendBrut))), backgroundColor:'#3D6B4F33', borderColor:'#3D6B4F', borderWidth:1.5},
+        {label:'Rend. net %', data:calcs.map(x=>parseFloat(fmtD(x.c.rendNet))), backgroundColor:'#C17B3E33', borderColor:'#C17B3E', borderWidth:1.5}
+      ]}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{family:'DM Sans',size:11},boxWidth:10}}},scales:{y:{beginAtZero:true,ticks:{callback:v=>v+'%'}}}} });
+    }, 100);
+  }
+}
+
+// ═══════════════════════════════════════════
+// FOYER FISCAL
+// ═══════════════════════════════════════════
+function getTmiContext(tmi) {
+  if (tmi === 0) return "Exonéré d'impôt sur cette tranche";
+  if (tmi === 11) return 'Tranche intermédiaire basse';
+  if (tmi === 30) return 'Tranche intermédiaire — classe moyenne';
+  if (tmi === 41) return 'Tranche haute';
+  if (tmi === 45) return 'Tranche maximale';
+  return '';
+}
+
+function updateFoyerLive() {
+  const tmi = calcTMI(S.foyer.revenu || 0, S.foyer.parts || 1);
+  const rpp = Math.round((S.foyer.revenu || 0) / (S.foyer.parts || 1));
+  const tmiEl = document.getElementById('tmi-auto-val');
+  const rppEl = document.getElementById('rev-par-part');
+  const ctxEl = document.getElementById('tmi-context');
+  const revEl = document.getElementById('revenu-display');
+  const selEl = document.getElementById('inp-tmi-manuel');
+  if (tmiEl) tmiEl.textContent = tmi + ' %';
+  if (rppEl) rppEl.textContent = fmt(rpp) + ' €';
+  if (ctxEl) ctxEl.textContent = getTmiContext(tmi);
+  if (revEl) revEl.textContent = fmt(S.foyer.revenu || 0) + ' €/an';
+  if (selEl) { const o = selEl.querySelector('option[value=""]'); if (o) o.textContent = 'Auto (' + tmi + '%)'; }
+  // Update impot preview
+  renderImpotPreview();
+}
+
+function calcImpotFoyer() {
+  const f = S.foyer;
+  const revBrut = f.revenuSalBrut || f.revenu || 0;
+  const parts = f.parts || 1;
+  const ps = (f.ps || 17.2) / 100;
+
+  // Abattement sur salaires
+  let revSalNet = revBrut;
+  if (f.abattement === 'frais-reels') {
+    revSalNet = Math.max(0, revBrut - (f.fraisReels || 0));
+  } else {
+    // 10% plafonné à 14 171€ (2024), minimum 495€
+    const aba = Math.min(Math.max(revBrut * 0.1, 495), 14171);
+    revSalNet = Math.max(0, revBrut - aba);
+    f._abattementCalc = Math.round(aba);
+  }
+  f._revSalNet = Math.round(revSalNet);
+
+  // IR sur salaires (barème progressif par part)
+  function calcIR(base, parts) {
+    const rpp = base / parts;
+    let ir = 0;
+    if (rpp > 11294) ir += Math.min(rpp - 11294, 27478 - 11294) * 0.11;
+    if (rpp > 27478) ir += Math.min(rpp - 27478, 78571 - 27478) * 0.30;
+    if (rpp > 78571) ir += Math.min(rpp - 78571, 168994 - 78571) * 0.41;
+    if (rpp > 168994) ir += (rpp - 168994) * 0.45;
+    return Math.round(ir * parts);
+  }
+
+  const irSalaires = calcIR(revSalNet, parts);
+
+  // Revenus locatifs de tous les biens
+  let totalRevLoc = 0, totalImpotLoc = 0;
+  S.portfolios.forEach(p => p.biens.forEach(b => {
+    const c = calcBien(b);
+    totalRevLoc += c.revenus;
+    totalImpotLoc += c.impot;
+  }));
+
+  // IR total avec loyers (approche simplifiée : loyers s'ajoutent au revenu imposable)
+  const tmi = f.tmiManuel !== null ? f.tmiManuel : calcTMI(revSalNet, parts);
+  const irLoyers = Math.round(Math.max(0, totalRevLoc) * (tmi / 100 + ps));
+
+  return {
+    revBrut, revSalNet, irSalaires, totalRevLoc, totalImpotLoc: irLoyers,
+    irTotal: irSalaires + irLoyers,
+    tmi,
+    abattementCalc: f._abattementCalc || 0
+  };
+}
+
+function renderImpotPreview() {
+  const el = document.getElementById('impot-preview');
+  if (!el) return;
+  const r = calcImpotFoyer();
+  el.innerHTML = `
+    <div class="mg mg3" style="margin-bottom:0">
+      <div class="mc"><div class="mc-lbl">IR sur salaires estimé</div><div class="mc-val neg">${fmt(r.irSalaires)} €</div><div class="mc-sub">Après abattement</div></div>
+      <div class="mc"><div class="mc-lbl">IR sur loyers estimé</div><div class="mc-val neg">${fmt(r.totalImpotLoc)} €</div><div class="mc-sub">Tous biens confondus</div></div>
+      <div class="mc mc-hl"><div class="mc-lbl">IR total estimé</div><div class="mc-val neg">${fmt(r.irTotal)} €</div><div class="mc-sub">Salaires + loyers</div></div>
+    </div>`;
+}
+
+function renderFoyer() {
+  document.getElementById('tbTitle').textContent = 'Foyer fiscal';
+  document.getElementById('tbActions').innerHTML = '';
+  const f = S.foyer;
+  const tmiAuto = calcTMI(f.revenu || 60000, f.parts || 1);
+  const abMode = f.abattement || '10pct';
+
+  document.getElementById('mainContent').innerHTML = `
+<div class="fs">
+  <div class="fs-title">👤 Situation fiscale du foyer</div>
+  <div class="alert a-info">Validez chaque champ avec <strong>Entrée</strong> ou en cliquant ailleurs pour déclencher le calcul.</div>
+  <div class="fg fg2" style="margin-bottom:16px">
+    <div class="fgrp">
+      <label>Revenu annuel net du foyer (€)</label>
+      <input type="number" id="inp-revenu" value="${f.revenu || 60000}" min="0" step="1000"
+        onchange="S.foyer.revenu=parseFloat(this.value)||0;save();updateFoyerLive()">
+      <div class="calc-val" id="revenu-display">${fmt(f.revenu || 60000)} €/an</div>
+    </div>
+    <div class="fgrp">
+      <label>Nombre de parts fiscales</label>
+      <select id="inp-parts" onchange="S.foyer.parts=parseFloat(this.value)||1;save();updateFoyerLive()">
+        ${[0.5,1,1.5,2,2.5,3,3.5,4].map(v => '<option value="'+v+'" '+(((f.parts||1)==v)?'selected':'')+'>'+v+' part'+(v>1?'s':'')+'</option>').join('')}
+      </select>
+    </div>
+    <div class="fgrp">
+      <label>Prélèvements sociaux (%)</label>
+      <input type="number" id="inp-ps" value="${f.ps || 17.2}" min="0" max="30" step="0.1"
+        onchange="S.foyer.ps=parseFloat(this.value)||17.2;save();renderImpotPreview()">
+      <div class="text-xs muted">Taux standard 2024 : 17.2%</div>
+    </div>
+    <div class="mc mc-hl" style="display:flex;flex-direction:column;justify-content:center">
+      <div class="mc-lbl">TMI calculée automatiquement</div>
+      <div class="mc-val" id="tmi-auto-val">${tmiAuto} %</div>
+      <div class="mc-sub">Revenu / part : <span id="rev-par-part">${fmt(Math.round((f.revenu||0)/(f.parts||1)))} €</span></div>
+      <div class="mc-sub" id="tmi-context" style="margin-top:4px">${getTmiContext(tmiAuto)}</div>
+    </div>
+  </div>
+  <div class="fg fg2" style="margin-bottom:16px">
+    <div class="fgrp">
+      <label>TMI manuelle (laisser vide = auto)</label>
+      <select id="inp-tmi-manuel" onchange="S.foyer.tmiManuel=this.value===''?null:parseInt(this.value);save();renderImpotPreview()">
+        <option value="">Auto (${tmiAuto}%)</option>
+        ${[0,11,30,41,45].map(v => '<option value="'+v+'" '+(f.tmiManuel===v?'selected':'')+'>'+v+'%</option>').join('')}
+      </select>
+    </div>
+    <div class="fgrp">
+      <label>Revenu salarial brut (avant abattement) (€)</label>
+      <input type="number" value="${f.revenuSalBrut || f.revenu || 60000}" min="0" step="1000"
+        onchange="S.foyer.revenuSalBrut=parseFloat(this.value)||0;save();renderImpotPreview()"
+        placeholder="${f.revenu || 60000}">
+      <div class="text-xs muted">Optionnel — pour calculer l'IR sur salaires séparément</div>
+    </div>
+  </div>
+</div>
+
+<div class="fs">
+  <div class="fs-title">🧾 Abattement sur revenus salariaux</div>
+  <div class="fg fg2" style="margin-bottom:14px">
+    <div class="fgrp">
+      <label>Mode de déduction</label>
+      <select onchange="S.foyer.abattement=this.value;save();renderFoyer()">
+        <option value="10pct" ${abMode==='10pct'?'selected':''}>Abattement forfaitaire 10%</option>
+        <option value="frais-reels" ${abMode==='frais-reels'?'selected':''}>Frais réels</option>
+      </select>
+    </div>
+    ${abMode === 'frais-reels' ? `<div class="fgrp">
+      <label>Montant des frais réels (€)</label>
+      <input type="number" value="${f.fraisReels || 0}" min="0" step="100"
+        onchange="S.foyer.fraisReels=parseFloat(this.value)||0;save();renderImpotPreview()">
+      <div class="text-xs muted">Transport, repas, formation, matériel professionnel...</div>
+    </div>` : `<div class="mc">
+      <div class="mc-lbl">Abattement auto calculé</div>
+      <div class="mc-val">${fmt(Math.min(Math.max((f.revenuSalBrut||f.revenu||0)*0.1, 495), 14171))} €</div>
+      <div class="mc-sub">10% plafonné à 14 171 € — min 495 €</div>
+    </div>`}
+  </div>
+  <div class="alert a-warn">💡 Les frais réels sont intéressants si vos dépenses professionnelles dépassent <strong>${fmt(Math.min(Math.max((f.revenuSalBrut||f.revenu||0)*0.1,495),14171))} €</strong> (votre abattement 10% actuel).</div>
+</div>
+
+<div class="fs">
+  <div class="fs-title">📊 Simulation IR total du foyer</div>
+  <div id="impot-preview"></div>
+  <div class="divider"></div>
+  <div class="alert a-warn" style="margin-top:12px">⚠️ Estimation indicative — pour votre déclaration réelle, consultez un conseiller fiscal ou utilisez le simulateur officiel impots.gouv.fr.</div>
+</div>
+
+<div class="fs">
+  <div class="fs-title">📋 Barème IR 2024 (par part fiscale)</div>
+  <table class="tbl">
+    <thead><tr><th>Tranche (revenu / part)</th><th>TMI</th><th>Prélèv. sociaux</th><th>Taux marginal total</th></tr></thead>
+    <tbody>
+      ${[["Jusqu'à 11 294 €",'0%'],['11 294 – 27 478 €','11%'],['27 478 – 78 571 €','30%'],['78 571 – 168 994 €','41%'],['Au-delà de 168 994 €','45%']].map(([t,r]) => {
+        const tmiVal = parseInt(r);
+        const total = tmiVal + (f.ps || 17.2);
+        return '<tr '+(tmiAuto===tmiVal?'class="base"':'')+'>'+
+          '<td>'+t+'</td><td><strong>'+r+'</strong></td>'+
+          '<td>'+(f.ps||17.2)+'%</td>'+
+          '<td><strong>'+total.toFixed(1)+'%</strong></td></tr>';
+      }).join('')}
+    </tbody>
+  </table>
+</div>`;
+
+  renderImpotPreview();
+}
+
+// ═══════════════════════════════════════════
+// SYNTHESE
+// ═══════════════════════════════════════════
+function renderSynthese(b, p) {
+  const c = calcBien(b);
+  document.getElementById('mainContent').innerHTML = `
+  <div class="breadcrumb"><span onclick="showDash()">Dashboard</span><span>›</span><span>${p.name}</span><span>›</span><span>${b.nom}</span></div>
+  <div style="margin-bottom:18px">${scoreRing(c.score, c.scoreLabel)}</div>
+  ${c.alerts.map(a => `<div class="alert a-${a.type}">${a.msg}</div>`).join('')}
+  <div class="rg rg4">
+    <div class="rc"><div class="rc-lbl">Total investi</div><div class="rc-val">${fmt(c.totalInvesti)} €</div><div class="rc-sub">Achat + notaire + travaux</div></div>
+    <div class="rc hl"><div class="rc-lbl">Rendement brut</div><div class="rc-val">${fmtD(c.rendBrut)} %</div></div>
+    <div class="rc hl"><div class="rc-lbl">Rendement net</div><div class="rc-val">${fmtD(c.rendNet)} %</div></div>
+    <div class="rc hl"><div class="rc-lbl">Rend. net-net (fiscal)</div><div class="rc-val">${fmtD(c.rendNetNet)} %</div></div>
+  </div>
+  <div class="rg rg4">
+    <div class="rc"><div class="rc-lbl">Mensualité crédit</div><div class="rc-val">${fmt(c.mensualite)} €/m</div></div>
+    <div class="rc"><div class="rc-lbl">Loyer mensuel</div><div class="rc-val">${fmt(c.loyerMensuel)} €/m</div><div class="rc-sub">Taux occ. ${b.data.loc.tauxOcc||92}%</div></div>
+    <div class="rc ${c.cashflowMensuel>=0?'hl':'dng'}"><div class="rc-lbl">Cash-flow mensuel</div><div class="rc-val ${c.cashflowMensuel>=0?'pos':'neg'}">${fmtE(Math.round(c.cashflowMensuel))}</div></div>
+    <div class="rc ${c.cashflowNetNet>=0?'hl':'dng'}"><div class="rc-lbl">CF net-net (fiscal)</div><div class="rc-val ${c.cashflowNetNet>=0?'pos':'neg'}">${fmtE(Math.round(c.cashflowNetNet))}</div></div>
+  </div>
+  <div class="sec-title">Récapitulatif financier</div>
+  <div class="fs"><div style="display:grid;grid-template-columns:1fr 1fr;gap:22px">
+    <div>
+      <div class="fw6 mb-8 text-sm">Acquisition</div>
+      ${kv('Prix d\'achat', fmt(c.prixAchat)+' €')}
+      ${kv('Frais de notaire', fmt(c.fraisNotaire)+' €')}
+      ${kv('Travaux (PC)', fmt(c.travauxPC)+' €')}
+      ${kv('Travaux (lots)', fmt(c.travauxLots)+' €')}
+      ${kv('Total investi', fmt(c.totalInvesti)+' €', true)}
+      ${kv('Apport', fmt(b.data.acq.apport||0)+' €')}
+      ${kv('Emprunt', fmt(b.data.emp.montant||0)+' €')}
+    </div>
+    <div>
+      <div class="fw6 mb-8 text-sm">Exploitation annuelle</div>
+      ${kv('Loyers bruts', fmt(c.loyerBrutAnnuel)+' €')}
+      ${kv('Frais gestion', '− '+fmt(c.fraisGestion)+' €')}
+      ${kv('Taxe foncière', '− '+fmt(c.taxeFonciere)+' €')}
+      ${kv('Assurance PNO', '− '+fmt(c.pno)+' €')}
+      ${kv('Charges copro', '− '+fmt(c.copro)+' €')}
+      ${kv('Revenus nets charges', fmt(c.revenus)+' €', true)}
+      ${kv('Crédit annuel', '− '+fmt(c.creditAnnuel)+' €')}
+      ${kv('Impôt estimé', '− '+fmt(c.impot)+' €')}
+      ${kv('CF annuel net-net', fmt(c.cashflowNetNet*12)+' €', true)}
+    </div>
+  </div></div>
+  ${b.type === 'immeuble' && b.data.lots?.length > 0 ? renderLotsResume(b) : ''}`;
+}
+function kv(label, val, bold=false) {
+  return `<div class="row-kv"><span class="${bold?'fw6':''} text-sm">${label}</span><span class="${bold?'fw6':''} text-sm">${val}</span></div>`;
+}
+function renderLotsResume(b) {
+  const totalLoyer = b.data.lots.reduce((s,l) => s+(parseFloat(l.loyer)||0), 0);
+  return `<div class="sec-title">Performance par lot</div>
+  <div class="bg-grid">
+    ${b.data.lots.map((lot, i) => {
+      const loyerPct = totalLoyer > 0 ? ((parseFloat(lot.loyer)||0) / totalLoyer * 100) : 0;
+      const hasWork = (lot.travaux||[]).length;
+      const doneWork = (lot.travaux||[]).filter(t=>t.valide).length;
+      return `<div class="bc" onclick="setTab('lots');S.selectedLotIdx=${i};render()">
+        <div class="bc-head"><div class="bc-icon">🚪</div><span class="chip ${lot.statut==='loue'?'ch-g':lot.statut==='vacant'?'ch-r':'ch-b'}">${lot.statut||'—'}</span></div>
+        <div class="bc-name">${lot.nom||'Lot '+(i+1)}</div>
+        <div class="bc-addr">${lot.surface||'—'} m² · ${lot.type||'—'}</div>
+        ${hasWork > 0 ? `<div class="bc-travaux"><div class="flex just-b" style="font-size:10px"><span>🔨 ${doneWork}/${hasWork} validés</span></div><div class="progress-bar"><div class="progress-fill" style="width:${Math.round(doneWork/hasWork*100)}%;background:${doneWork===hasWork?'var(--green)':'var(--gold)'}"></div></div></div>` : ''}
+        <div class="bc-metrics">
+          <div><div class="bcm-lbl">Loyer HC</div><div class="bcm-val">${fmt(lot.loyer||0)} €/m</div></div>
+          <div><div class="bcm-lbl">Part du revenu</div><div class="bcm-val">${fmtD(loyerPct)}%</div></div>
+          <div><div class="bcm-lbl">Locataire</div><div class="bcm-val" style="font-size:10px">${lot.locataire||'—'}</div></div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+// ═══════════════════════════════════════════
+// ACQUISITION
+// ═══════════════════════════════════════════
+function renderAcquisition(b) {
+  const d = b.data, c = calcBien(b);
+  const amort = calcAmort(d.emp.montant||0, d.emp.taux||3.8, d.emp.duree||20);
+  const totalInt = amort.reduce((s,r) => s+r.int, 0);
+  const fraisNotaireE = (d.acq.prixAchat||0) * (d.acq.fraisNotaire||7.5) / 100;
+  const aFinancer = (d.acq.prixAchat||0) + fraisNotaireE - (d.acq.apport||0);
+
+  document.getElementById('mainContent').innerHTML = `
+  <div class="fs">
+    <div class="fs-title">🏠 Prix d'acquisition</div>
+    <div class="fg fg2">
+      <div class="fgrp"><label>Prix d'achat (€)</label><input type="number" value="${d.acq.prixAchat||''}" oninput="updateBienField('acq.prixAchat',this.value);autoFillCharges()" placeholder="180000"></div>
+      <div class="fgrp"><label>Frais de notaire (%) <span class="calc-val">${fmt(fraisNotaireE)} €</span></label><input type="number" step="0.1" value="${d.acq.fraisNotaire||7.5}" oninput="updateBienField('acq.fraisNotaire',this.value)"></div>
+      <div class="fgrp"><label>Apport personnel (€)</label><input type="number" value="${d.acq.apport||''}" oninput="updateBienField('acq.apport',this.value)" placeholder="30000"></div>
+      <div class="mc mc-hl"><div class="mc-lbl">À financer</div><div class="mc-val">${fmt(aFinancer)} €</div></div>
+    </div>
+  </div>
+  <div class="fs">
+    <div class="fs-title">🏦 Emprunt bancaire</div>
+    <div class="fg fg2">
+      <div class="fgrp"><label>Montant emprunté (€)</label><input type="number" value="${d.emp.montant||''}" oninput="updateBienField('emp.montant',this.value)" placeholder="150000"></div>
+      <div class="fgrp"><label>Taux nominal (%)</label><input type="number" step="0.01" value="${d.emp.taux||3.8}" oninput="updateBienField('emp.taux',this.value)"></div>
+      <div class="fgrp"><label>Durée (années)</label><input type="number" value="${d.emp.duree||20}" oninput="updateBienField('emp.duree',this.value)"></div>
+      <div class="fgrp"><label>Assurance (% annuel)</label><input type="number" step="0.01" value="${d.emp.assurance||0.12}" oninput="updateBienField('emp.assurance',this.value)"></div>
+    </div>
+    <div class="divider"></div>
+    <div class="mg mg3">
+      <div class="mc"><div class="mc-lbl">Mensualité totale</div><div class="mc-val">${fmt(c.mensualite)} €</div><div class="mc-sub">Crédit + assurance</div></div>
+      <div class="mc"><div class="mc-lbl">Total intérêts</div><div class="mc-val">${fmt(totalInt)} €</div></div>
+      <div class="mc"><div class="mc-lbl">Coût total crédit</div><div class="mc-val">${fmt(totalInt + (d.emp.montant||0))} €</div></div>
+    </div>
+  </div>
+  ${amort.length > 0 ? `<div class="fs"><div class="fs-title">📊 Tableau d'amortissement</div>
+  <div class="tbl-scroll"><table class="tbl"><thead><tr><th>Année</th><th>Mois</th><th>Mensualité</th><th>Intérêts</th><th>Capital remboursé</th><th>Capital restant</th></tr></thead>
+  <tbody>${amort.map(r => `<tr><td>${r.annee}</td><td>${r.mois}</td><td>${fmt(r.mens)} €</td><td class="neg">${fmt(r.int)} €</td><td class="pos">${fmt(r.amort)} €</td><td>${fmt(r.cap)} €</td></tr>`).join('')}</tbody></table></div></div>` : ''}`;
+}
+
+// ═══════════════════════════════════════════
+// TRAVAUX
+// ═══════════════════════════════════════════
+const TW_CATS = ['Peinture','Plomberie','Électricité','Menuiserie','Sol','Cuisine','Salle de bain','Toiture','Façade','Structure','Isolation','Parties communes','Autre'];
+const TW_STATUTS = ['planifié','en cours','terminé'];
+
+function renderTravaux(b) {
+  const d = b.data;
+  const tPC = d.travauxPC || [];
+  const totalEstPC = tPC.reduce((s,t) => s+(parseFloat(t.estime)||0), 0);
+  const totalReelPC = tPC.reduce((s,t) => s+(parseFloat(t.reel)||0), 0);
+  const totalEstLots = d.lots ? d.lots.flatMap(l=>l.travaux||[]).reduce((s,t) => s+(parseFloat(t.estime)||0), 0) : 0;
+  const totalReelLots = d.lots ? d.lots.flatMap(l=>l.travaux||[]).reduce((s,t) => s+(parseFloat(t.reel)||0), 0) : 0;
+
+  let lotsSection = '';
+  if (d.lots && d.lots.length > 0) {
+    lotsSection = d.lots.map((lot, li) => {
+      const lt = lot.travaux || [];
+      const estLot = lt.reduce((s,t) => s+(parseFloat(t.estime)||0), 0);
+      const reelLot = lt.reduce((s,t) => s+(parseFloat(t.reel)||0), 0);
+      return `<div class="fs">
+        <div class="fs-title">🚪 Travaux — ${lot.nom||'Lot '+(li+1)}</div>
+        <div class="mg mg3" style="margin-bottom:14px">
+          <div class="mc"><div class="mc-lbl">Estimé</div><div class="mc-val">${fmt(estLot)} €</div></div>
+          <div class="mc"><div class="mc-lbl">Réel</div><div class="mc-val ${reelLot > estLot && estLot > 0 ?'neg':''}">${fmt(reelLot)} €</div></div>
+          <div class="mc"><div class="mc-lbl">Loyer après travaux</div><div class="mc-val">${fmt(lot.loyerApresTravaux||0)} €/m</div></div>
+        </div>
+        ${twTable(lt, `lot-${li}`)}
+        <button class="btn-add" onclick="addTwLot(${li})">+ Ajouter un poste travaux</button>
+        <div class="fgrp" style="margin-top:12px;max-width:240px">
+          <label>Loyer estimé après travaux (€/mois)</label>
+          <input type="number" value="${lot.loyerApresTravaux||''}" oninput="updateLotField(${li},'loyerApresTravaux',parseFloat(this.value)||0)" placeholder="800">
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  document.getElementById('mainContent').innerHTML = `
+  <div class="fs">
+    <div class="fs-title">🏢 Travaux — Parties communes</div>
+    <div class="mg mg3" style="margin-bottom:14px">
+      <div class="mc"><div class="mc-lbl">Estimé</div><div class="mc-val">${fmt(totalEstPC)} €</div></div>
+      <div class="mc"><div class="mc-lbl">Réel</div><div class="mc-val ${totalReelPC > totalEstPC && totalEstPC > 0 ? 'neg':''}">${fmt(totalReelPC)} €</div></div>
+      <div class="mc"><div class="mc-lbl">Écart</div><div class="mc-val ${totalReelPC > totalEstPC ? 'neg' : totalReelPC > 0 ? 'pos' : ''}">${fmt(totalReelPC - totalEstPC)} €</div></div>
+    </div>
+    ${twTable(tPC, 'pc')}
+    <button class="btn-add" onclick="addTwPC()">+ Ajouter un poste</button>
+  </div>
+  ${lotsSection}
+  <div class="fs">
+    <div class="fs-title">📊 Récapitulatif global travaux</div>
+    <table class="tbl"><thead><tr><th>Périmètre</th><th>Estimé</th><th>Réel</th><th>Écart</th></tr></thead>
+    <tbody>
+      <tr><td>Parties communes</td><td>${fmt(totalEstPC)} €</td><td>${fmt(totalReelPC)} €</td><td class="${totalReelPC>totalEstPC?'neg':'pos'}">${fmt(totalReelPC-totalEstPC)} €</td></tr>
+      <tr><td>Lots (total)</td><td>${fmt(totalEstLots)} €</td><td>${fmt(totalReelLots)} €</td><td class="${totalReelLots>totalEstLots?'neg':'pos'}">${fmt(totalReelLots-totalEstLots)} €</td></tr>
+      <tr class="base"><td><strong>TOTAL</strong></td><td><strong>${fmt(totalEstPC+totalEstLots)} €</strong></td><td><strong>${fmt(totalReelPC+totalReelLots)} €</strong></td><td class="${(totalReelPC+totalReelLots)>(totalEstPC+totalEstLots)?'neg':'pos'}"><strong>${fmt((totalReelPC+totalReelLots)-(totalEstPC+totalEstLots))} €</strong></td></tr>
+    </tbody></table>
+  </div>`;
+}
+
+function twTable(rows, prefix) {
+  if (rows.length === 0) return `<div class="muted text-sm" style="padding:8px 0">Aucun poste de travaux.</div>`;
+  const artisanOpts = (S.artisans||[]).map(a => `<option value="${a.id}" >`+a.nom+' ('+a.specialite+')'+'</option>').join('');
+  return `<div class="tw-hdr tw-cols-pc"><span>Poste</span><span>Catégorie</span><span>Estimé (€)</span><span>Réel (€)</span><span>Durée</span><span>Artisan</span><span>Statut</span><span></span><span></span></div>` +
+  rows.map((t, i) => {
+    const artisan = t.artisanId ? (S.artisans||[]).find(a => a.id === t.artisanId) : null;
+    return `<div class="tw-row" style="display:grid;grid-template-columns:1fr 110px 85px 85px 65px 130px 95px 68px 28px;gap:6px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);${t.valide?'opacity:.8;background:var(--s2)':''}">
+    <input type="text" value="${t.nom||''}" class="${t.valide?'tw-validated':''}" onchange="updateTw('${prefix}',${i},'nom',this.value,false)" placeholder="Description poste">
+    <select onchange="updateTw('${prefix}',${i},'cat',this.value,false)">${TW_CATS.map(c=>`<option ${t.cat===c?'selected':''}>${c}</option>`).join('')}</select>
+    <input type="number" value="${t.estime||''}" onchange="updateTw('${prefix}',${i},'estime',this.value)" placeholder="0">
+    <input type="number" value="${t.reel||''}" onchange="updateTw('${prefix}',${i},'reel',this.value)" placeholder="0">
+    <input type="number" value="${t.duree||''}" onchange="updateTw('${prefix}',${i},'duree',this.value)" placeholder="0">
+    <select onchange="updateTw('${prefix}',${i},'artisanId',this.value,false)">
+      <option value="">— Artisan —</option>
+      ${artisanOpts}
+    </select>
+    <select onchange="updateTw('${prefix}',${i},'statut',this.value,false)">${TW_STATUTS.map(s=>`<option ${t.statut===s?'selected':''}>${s}</option>`).join('')}</select>
+    ${t.valide
+      ? `<button class="btn-validate" style="background:var(--t3);font-size:10px" title="Cliquer pour dévalider" onclick="unvalidateTw('${prefix}',${i})">✓ OK</button>`
+      : `<button class="btn-validate" onclick="validateTw('${prefix}',${i})">Valider</button>`}
+    <button class="btn-rm" onclick="removeTw('${prefix}',${i})">×</button>
+  </div>`;
+  }).join('');
+}
+
+function getTwArray(prefix) {
+  const b = getBien(); if (!b) return null;
+  if (prefix === 'pc') return {arr: b.data.travauxPC, set: v => b.data.travauxPC = v};
+  const idx = parseInt(prefix.split('-')[1]);
+  return {arr: b.data.lots[idx].travaux || [], set: v => b.data.lots[idx].travaux = v};
+}
+function addTwPC() {
+  const b = getBien(); if (!b) return;
+  if (!b.data.travauxPC) b.data.travauxPC = [];
+  b.data.travauxPC.push({id:uid(),nom:'',cat:'Autre',estime:0,reel:0,duree:0,statut:'planifié',valide:false});
+  save(); renderTravaux(b);
+}
+function addTwLot(li) {
+  const b = getBien(); if (!b) return;
+  if (!b.data.lots[li].travaux) b.data.lots[li].travaux = [];
+  b.data.lots[li].travaux.push({id:uid(),nom:'',cat:'Autre',estime:0,reel:0,duree:0,statut:'planifié',valide:false});
+  save(); renderTravaux(b);
+}
+function updateTw(prefix, i, key, val, numeric=true) {
+  const b = getBien(); if (!b) return;
+  let arr;
+  if (prefix === 'pc') arr = b.data.travauxPC;
+  else { const li = parseInt(prefix.split('-')[1]); arr = b.data.lots[li].travaux; }
+  if (!arr || !arr[i]) return;
+  arr[i][key] = numeric ? (parseFloat(val)||0) : val;
+  save(); renderSidebar();
+}
+function removeTw(prefix, i) {
+  const b = getBien(); if (!b) return;
+  if (prefix === 'pc') b.data.travauxPC.splice(i, 1);
+  else { const li = parseInt(prefix.split('-')[1]); b.data.lots[li].travaux.splice(i, 1); }
+  save(); renderTravaux(b);
+}
+function validateTw(prefix, i) {
+  const b = getBien(); if (!b) return;
+  let tw;
+  if (prefix === 'pc') tw = b.data.travauxPC[i];
+  else { const li = parseInt(prefix.split('-')[1]); tw = b.data.lots[li].travaux[i]; }
+  if (!tw) return;
+  if (!tw.reel) { alert('Veuillez saisir le coût réel avant de valider.'); return; }
+  tw.valide = true; tw.statut = 'terminé';
+  // Si lot et loyer après travaux : l'appliquer
+  if (prefix !== 'pc') {
+    const li = parseInt(prefix.split('-')[1]);
+    const lot = b.data.lots[li];
+    if (lot.loyerApresTravaux > 0 && lot.statut === 'travaux') {
+      if (confirm(`Travaux validés ! Appliquer le loyer après travaux (${lot.loyerApresTravaux} €/mois) et passer le lot en "vacant" ?`)) {
+        lot.loyer = lot.loyerApresTravaux;
+        lot.statut = 'vacant';
+      }
+    }
+  }
+  save(); renderTravaux(b);
+}
+function unvalidateTw(prefix, i) {
+  const b = getBien(); if (!b) return;
+  if (prefix === 'pc') b.data.travauxPC[i].valide = false;
+  else { const li = parseInt(prefix.split('-')[1]); b.data.lots[li].travaux[i].valide = false; }
+  save(); renderTravaux(b);
+}
+
+// ═══════════════════════════════════════════
+// LOTS
+// ═══════════════════════════════════════════
+function renderLots(b) {
+  const d = b.data;
+  if (!d.lots) d.lots = [];
+  const selIdx = Math.min(S.selectedLotIdx || 0, d.lots.length);
+  const isNew = selIdx >= d.lots.length;
+
+  const totalLoyer = d.lots.reduce((s,l) => s+(parseFloat(l.loyer)||0), 0);
+  const totalCharges = d.lots.reduce((s,l) => s+(parseFloat(l.charges)||0), 0);
+
+  document.getElementById('mainContent').innerHTML = `
+  <div class="alert a-info">Loyers totaux des lots : <strong>${fmt(totalLoyer)} €/mois HC</strong> — alimentent automatiquement la section Location.</div>
+  <div class="lots-layout">
+    <div class="lot-form-area">
+      <div class="fs">
+        <div class="fs-title">${isNew ? '+ Nouveau lot' : '✏️ Modifier — '+(d.lots[selIdx]?.nom||'Lot')}</div>
+        ${isNew ? lotForm(null, selIdx) : lotForm(d.lots[selIdx], selIdx)}
+        <div class="mo-acts" style="margin-top:14px;justify-content:flex-start;gap:8px">
+          ${!isNew ? `<button class="btn-sec" onclick="removeLot(${selIdx})">Supprimer ce lot</button>` : ''}
+          <button class="btn-pri" onclick="saveLotForm(${selIdx},${isNew})">${isNew ? 'Créer le lot' : 'Enregistrer'}</button>
+          <button class="btn-add" onclick="S.selectedLotIdx=${d.lots.length};render()">+ Nouveau lot</button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="fw6 text-sm mb-8">Lots créés (${d.lots.length})</div>
+      <div class="lot-mini-list">
+        ${d.lots.map((lot,i) => `<div class="lot-mini ${i===selIdx&&!isNew?'selected':''}" onclick="S.selectedLotIdx=${i};render()">
+          <div class="flex just-b items-c">
+            <div class="lot-mini-name">${lot.nom||'Lot '+(i+1)}</div>
+            <span class="chip ${lot.statut==='loue'?'ch-g':lot.statut==='vacant'?'ch-r':'ch-b'}">${lot.statut||'—'}</span>
+          </div>
+          <div class="lot-mini-sub">${lot.surface||'—'} m² · ${lot.type||'—'}</div>
+          <div class="lot-mini-loyer">${fmt(lot.loyer||0)} €/mois HC + ${fmt(lot.charges||0)} € charges</div>
+          ${(lot.travaux||[]).length > 0 ? `<div class="text-xs muted mt-8">🔨 ${(lot.travaux||[]).filter(t=>t.valide).length}/${(lot.travaux||[]).length} travaux validés</div>` : ''}
+        </div>`).join('')}
+        ${d.lots.length === 0 ? `<div class="text-sm muted">Aucun lot créé.</div>` : ''}
+        <div class="divider"></div>
+        <div class="mc mc-hl"><div class="mc-lbl">Total loyers HC</div><div class="mc-val">${fmt(totalLoyer)} €/m</div></div>
+        <div class="mc" style="margin-top:8px"><div class="mc-lbl">Total charges</div><div class="mc-val">${fmt(totalCharges)} €/m</div></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function lotForm(lot, idx) {
+  const v = k => lot ? (lot[k] ?? '') : '';
+  const lotTypes = ['Studio','T1','T2','T3','T4','T5','T6','Maison','Commercial','Autre'];
+  return `<div class="fg fg2" id="lotFormFields">
+    <div class="fgrp"><label>Nom du lot</label><input id="lf-nom" type="text" value="${v('nom')}" placeholder="Appt 2ème gauche"></div>
+    <div class="fgrp"><label>Type</label><select id="lf-type">${lotTypes.map(t=>`<option ${v('type')===t?'selected':''}>${t}</option>`).join('')}</select></div>
+    <div class="fgrp"><label>Surface (m²)</label><input id="lf-surface" type="number" value="${v('surface')}" placeholder="55"></div>
+    <div class="fgrp"><label>Statut</label><select id="lf-statut"><option value="loue" ${v('statut')==='loue'?'selected':''}>Loué</option><option value="vacant" ${v('statut')==='vacant'?'selected':''}>Vacant</option><option value="travaux" ${v('statut')==='travaux'?'selected':''}>En travaux</option></select></div>
+    <div class="fgrp"><label>Loyer mensuel HC (€)</label><input id="lf-loyer" type="number" value="${v('loyer')}" placeholder="700" oninput="document.getElementById('lf-loyer-cc').textContent='CC : '+(parseFloat(this.value)||0)+(parseFloat(document.getElementById('lf-charges').value)||0)+' €'"></div>
+    <div class="fgrp"><label>Charges locatives (€/mois) <span id="lf-loyer-cc" class="calc-val">CC : ${fmt((parseFloat(v('loyer'))||0)+(parseFloat(v('charges'))||0))} €</span></label><input id="lf-charges" type="number" value="${v('charges')}" placeholder="50" oninput="document.getElementById('lf-loyer-cc').textContent='CC : '+((parseFloat(document.getElementById('lf-loyer').value)||0)+(parseFloat(this.value)||0))+' €'"></div>
+    <div class="fgrp"><label>Locataire</label><input id="lf-locataire" type="text" value="${v('locataire')}" placeholder="Nom du locataire"></div>
+    <div class="fgrp"><label>Date d'entrée</label><input id="lf-dateEntree" type="date" value="${v('dateEntree')}"></div>
+    <div class="fgrp"><label>Dépôt de garantie (€)</label><input id="lf-depotGarantie" type="number" value="${v('depotGarantie')}" placeholder="1400"></div>
+    <div class="fgrp"><label>Loyer estimé après travaux (€/mois)</label><input id="lf-loyerApresTravaux" type="number" value="${v('loyerApresTravaux')}" placeholder="0"></div>
+    <div class="fgrp fg-full"><label>Notes</label><textarea id="lf-notes" rows="2" style="resize:none">${v('notes')}</textarea></div>
+  </div>`;
+}
+function saveLotForm(idx, isNew) {
+  const b = getBien(); if (!b) return;
+  if (!b.data.lots) b.data.lots = [];
+  const g = id => document.getElementById(id);
+  const lotData = {
+    nom: g('lf-nom').value, type: g('lf-type').value,
+    surface: parseFloat(g('lf-surface').value)||0,
+    loyer: parseFloat(g('lf-loyer').value)||0,
+    charges: parseFloat(g('lf-charges').value)||0,
+    statut: g('lf-statut').value, locataire: g('lf-locataire').value,
+    dateEntree: g('lf-dateEntree').value,
+    depotGarantie: parseFloat(g('lf-depotGarantie').value)||0,
+    loyerApresTravaux: parseFloat(g('lf-loyerApresTravaux').value)||0,
+    notes: g('lf-notes').value
+  };
+  if (isNew) { lotData.id = uid(); lotData.travaux = []; b.data.lots.push(lotData); S.selectedLotIdx = b.data.lots.length - 1; }
+  else { b.data.lots[idx] = {...b.data.lots[idx], ...lotData}; }
+  // Auto-update loyer total dans location
+  const totalLoyer = b.data.lots.reduce((s,l) => s+(parseFloat(l.loyer)||0), 0);
+  b.data.loc.loyer = totalLoyer;
+  save(); renderSidebar(); renderLots(b);
+}
+function removeLot(i) {
+  const b = getBien(); if (!b) return;
+  if (!confirm('Supprimer ce lot ?')) return;
+  b.data.lots.splice(i, 1); S.selectedLotIdx = 0;
+  save(); renderLots(b);
+}
+function updateLotField(i, key, val) {
+  const b = getBien(); if (!b || !b.data.lots[i]) return;
+  b.data.lots[i][key] = val; save(); renderSidebar();
+}
+
+// ═══════════════════════════════════════════
+// LOCATION
+// ═══════════════════════════════════════════
+function autoFillCharges() {
+  const b = getBien(); if (!b) return;
+  const prix = b.data.acq.prixAchat || 0;
+  const loyer = b.data.loc.loyer || 0;
+  if (!b.data.loc.taxeFonciere && prix > 0) b.data.loc.taxeFonciere = Math.round(loyer * 0.9);
+  if (!b.data.loc.pno && prix > 0) b.data.loc.pno = Math.round(prix * 0.0015);
+  save();
+}
+
+function renderLocation(b) {
+  const d = b.data.loc;
+  const prix = b.data.acq.prixAchat || 0;
+  const loyerAuto = b.type === 'immeuble' && b.data.lots?.length > 0 ? b.data.lots.reduce((s,l) => s+(parseFloat(l.loyer)||0), 0) : 0;
+  const tfAuto = Math.round((d.loyer||loyerAuto) * 0.9);
+  const pnoAuto = Math.round(prix * 0.0015);
+
+  document.getElementById('mainContent').innerHTML = `
+  ${loyerAuto > 0 ? `<div class="alert a-ok">Loyer calculé automatiquement depuis les lots : <strong>${fmt(loyerAuto)} €/mois</strong></div>` : ''}
+  <div class="fs">
+    <div class="fs-title">🏠 Revenus locatifs</div>
+    <div class="fg fg2">
+      <div class="fgrp"><label>Loyer mensuel HC (€) ${loyerAuto>0?'<span class="calc-val">Auto depuis lots</span>':''}</label><input type="number" value="${d.loyer||''}" ${loyerAuto>0?'readonly style="background:var(--s2)"':''} oninput="updateBienField('loc.loyer',this.value)" placeholder="800"></div>
+      <div class="fgrp"><label>Charges locatives (€/mois)</label><input type="number" value="${d.charges||''}" oninput="updateBienField('loc.charges',this.value)" placeholder="80"></div>
+      <div class="fgrp">
+        <label>Taux d'occupation — <span class="calc-val">${d.tauxOcc||92}%</span></label>
+        <input type="range" min="0" max="100" value="${d.tauxOcc||92}" oninput="this.previousElementSibling.querySelector('.calc-val').textContent=this.value+'%';updateBienField('loc.tauxOcc',this.value)">
+      </div>
+      <div class="fgrp"><label>Revalorisation loyer/an (%)</label><input type="number" step="0.1" value="${d.revalo||1.5}" oninput="updateBienField('loc.revalo',this.value)"></div>
+    </div>
+  </div>
+  <div class="fs">
+    <div class="fs-title">📋 Charges annuelles <span class="text-xs muted" style="font-weight:400;margin-left:6px">Valeurs estimées automatiquement — modifiables</span></div>
+    <div class="fg fg2">
+      <div class="fgrp"><label>Frais de gestion locative (%)</label><input type="number" step="0.5" value="${d.fraisGestion||0}" oninput="updateBienField('loc.fraisGestion',this.value)" placeholder="0"></div>
+      <div class="fgrp"><label>Taxe foncière (€/an) <span class="calc-val">Estimation : ${fmt(tfAuto)} €</span></label><input type="number" value="${d.taxeFonciere||''}" oninput="updateBienField('loc.taxeFonciere',this.value)" placeholder="${tfAuto}"></div>
+      <div class="fgrp"><label>Assurance PNO (€/an) <span class="calc-val">Estimation : ${fmt(pnoAuto)} €</span></label><input type="number" value="${d.pno||''}" oninput="updateBienField('loc.pno',this.value)" placeholder="${pnoAuto}"></div>
+      <div class="fgrp"><label>Charges copropriété (€/mois)</label><input type="number" value="${d.copro||''}" oninput="updateBienField('loc.copro',this.value)" placeholder="0"></div>
+    </div>
+    <button class="btn-add" style="margin-top:10px" onclick="autoFillChargesLoc()">↺ Recalculer les estimations automatiques</button>
+  </div>
+  <div class="fs">
+    <div class="fs-title">📊 Fourchettes scénarios</div>
+    <div class="fg fg2">
+      <div class="fgrp"><label>Loyer bas — pessimiste (€)</label><input type="number" value="${d.loyerBas||''}" oninput="updateBienField('loc.loyerBas',this.value)" placeholder="${Math.round((d.loyer||0)*.85)}"></div>
+      <div class="fgrp"><label>Loyer haut — optimiste (€)</label><input type="number" value="${d.loyerHaut||''}" oninput="updateBienField('loc.loyerHaut',this.value)" placeholder="${Math.round((d.loyer||0)*1.1)}"></div>
+      <div class="fgrp"><label>Taux occupation bas (%)</label><input type="number" value="${d.occBas||80}" oninput="updateBienField('loc.occBas',this.value)"></div>
+      <div class="fgrp"><label>Taux occupation haut (%)</label><input type="number" value="${d.occHaut||98}" oninput="updateBienField('loc.occHaut',this.value)"></div>
+    </div>
+  </div>`;
+}
+function autoFillChargesLoc() {
+  const b = getBien(); if (!b) return;
+  const prix = b.data.acq.prixAchat || 0;
+  const loyer = b.data.loc.loyer || 0;
+  b.data.loc.taxeFonciere = Math.round(loyer * 0.9);
+  b.data.loc.pno = Math.round(prix * 0.0015);
+  save(); renderLocation(b);
+}
+
+// ═══════════════════════════════════════════
+// FISCAL
+// ═══════════════════════════════════════════
+function renderFiscal(b) {
+  const d = b.data;
+  const regimes = [
+    {id:'nu', title:'Location nue', sub:'Régime réel', detail:'Vous déduisez les charges réelles (taxe foncière, intérêts, assurances...). Revenus imposés à votre TMI + prélèvements sociaux.'},
+    {id:'micro-bic', title:'Meublé Micro-BIC', sub:'Abattement 50%', detail:'Abattement forfaitaire de 50% sur vos recettes brutes. Simple mais moins favorable si vos charges réelles > 50%.'},
+    {id:'lmnp-reel', title:'LMNP Réel', sub:'Amortissements', detail:'Vous amortissez le bien (≈2.5%/an) et les travaux. Peut neutraliser l\'imposition plusieurs années. Nécessite un comptable.'},
+    {id:'sci-is', title:'SCI à l\'IS', sub:'IS 15% puis 25%', detail:'Impôt sur les sociétés : 15% jusqu\'à 42 500€ de bénéfice, 25% au-delà. Intéressant pour capitaliser, mais double imposition à la revente.'},
+  ];
+  const tmi = calcTMI(S.foyer.revenu||60000, S.foyer.parts||1);
+
+  const compares = regimes.map(r => {
+    const tmp = JSON.parse(JSON.stringify(b));
+    tmp.data.fiscal.regime = r.id;
+    const c = calcBien(tmp);
+    return {r, c};
+  });
+
+  document.getElementById('mainContent').innerHTML = `
+  <div class="alert a-info">TMI du foyer : <strong>${S.foyer.tmiManuel !== null ? S.foyer.tmiManuel : tmi}%</strong> + prélèvements sociaux ${S.foyer.ps||17.2}% = <strong>${(S.foyer.tmiManuel !== null ? S.foyer.tmiManuel : tmi) + (S.foyer.ps||17.2)}% de taux marginal total</strong> sur les revenus locatifs. <span style="cursor:pointer;color:var(--green)" onclick="showFoyer()">Modifier →</span></div>
+  <div class="reg-sel">
+    ${regimes.map(r => `<div class="reg-btn ${d.fiscal.regime===r.id?'active':''}" onclick="setRegime('${r.id}')">
+      <div class="reg-title">${r.title}</div>
+      <div class="reg-sub">${r.sub}</div>
+    </div>`).join('')}
+  </div>
+  <div class="fs" style="margin-bottom:14px">
+    <div class="fs-title">📖 ${regimes.find(r=>r.id===d.fiscal.regime)?.title}</div>
+    <p class="text-sm" style="line-height:1.6;color:var(--t2)">${regimes.find(r=>r.id===d.fiscal.regime)?.detail}</p>
+  </div>
+  <div class="sec-title">Comparatif des 4 régimes — votre bien</div>
+  <div class="fs" style="padding:0;overflow:hidden">
+    <table class="sens-tbl">
+      <thead><tr><th>Régime</th><th>Revenus nets charges</th><th>Impôt / an</th><th>Taux effectif</th><th>CF net-net / mois</th><th>Rend. net-net</th></tr></thead>
+      <tbody>
+        ${compares.map(({r,c}) => `<tr ${d.fiscal.regime===r.id?'class="base-row"':''}>
+          <td><strong>${r.title}</strong></td>
+          <td>${fmt(c.revenus)} €</td>
+          <td class="neg"><strong>${fmt(c.impot)} €</strong></td>
+          <td>${c.revenus > 0 ? fmtD(c.impot/c.revenus*100) : '0.00'}%</td>
+          <td class="${c.cashflowNetNet>=0?'pos':'neg'}"><strong>${fmtE(Math.round(c.cashflowNetNet))}</strong></td>
+          <td>${fmtD(c.rendNetNet)}%</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>
+  <div class="alert a-warn" style="margin-top:14px">⚠️ Ces calculs sont des estimations pédagogiques. Pour une décision fiscale, consultez un expert-comptable ou un conseiller fiscal.</div>`;
+}
+function setRegime(regime) {
+  const b = getBien(); if (!b) return;
+  b.data.fiscal.regime = regime; save(); renderFiscal(b);
+}
+
+// ═══════════════════════════════════════════
+// DECISION
+// ═══════════════════════════════════════════
+function renderDecision(b) {
+  const d = b.data;
+  const prix = d.acq.prixAchat || 0;
+  const c = calcBien(b);
+
+  // Scénarios
+  const scen = (type) => {
+    const loc = d.loc;
+    const ov = type === 'pessimiste'
+      ? {loyer: loc.loyerBas || Math.round((loc.loyer||0)*.85), tauxOcc: loc.occBas||80}
+      : type === 'optimiste'
+      ? {loyer: loc.loyerHaut || Math.round((loc.loyer||0)*1.1), tauxOcc: loc.occHaut||98}
+      : {loyer: loc.loyer||0, tauxOcc: loc.tauxOcc||92};
+    return calcBien(b, ov);
+  };
+  const cs = S.selectedScenario || 'realiste';
+  const scPess = scen('pessimiste'), scReal = scen('realiste'), scOpti = scen('optimiste');
+  const scActive = {pessimiste:scPess, realiste:scReal, optimiste:scOpti}[cs];
+
+  // Break-even
+  const loyerMinBreak = c.mensualite + (c.chargesTotal / 12);
+  const occBreak = c.loyerMensuel > 0 ? Math.min(100, (loyerMinBreak / c.loyerMensuel) * 100) : 0;
+  const apportRecup = c.apport > 0 && c.cashflowNetNet > 0 ? fmtD(c.apport / (c.cashflowNetNet * 12), 1) + ' ans' : c.apport > 0 ? '∞ (CF négatif)' : 'N/A';
+
+  // Prix cible
+  const prixCibleFn = (rendCible) => {
+    const loyer = d.loc.loyer || 0;
+    const tauxOcc = (d.loc.tauxOcc||92)/100;
+    const loyerAn = loyer * 12 * tauxOcc;
+    const chargesAn = (d.loc.taxeFonciere||0) + (d.loc.pno||0) + (d.loc.copro||0)*12;
+    const revenus = loyerAn - chargesAn;
+    return revenus / (rendCible/100);
+  };
+
+  document.getElementById('mainContent').innerHTML = `
+  <div class="pf-box">
+    <div class="fs-title" style="border:none;padding:0;margin-bottom:14px">🎯 Prix d'achat cible</div>
+    <div class="fg fg2">
+      <div class="fgrp"><label>Rendement net cible (%)</label><input type="number" step="0.5" id="rendCible" value="6" oninput="recalcPrixCible()"></div>
+      <div class="fgrp"><label>Cash-flow mensuel cible (€)</label><input type="number" id="cfCible" value="0" oninput="recalcPrixCible()"></div>
+    </div>
+    <div id="prixCibleResult" style="margin-top:14px"></div>
+  </div>
+
+  <div class="sec-title">📊 Analyse de sensibilité — Prix d'achat</div>
+  <div class="fs" style="padding:0;overflow:hidden">
+    <table class="sens-tbl">
+      <thead><tr><th>Prix d'achat</th><th>Rend. brut</th><th>Rend. net</th><th>CF mensuel</th><th>Négociation vs actuel</th></tr></thead>
+      <tbody>
+        ${[-30,-20,-15,-10,-5,0,5,10,15,20].map(delta => {
+          const p2 = prix * (1 + delta/100);
+          const tmp = JSON.parse(JSON.stringify(b));
+          tmp.data.acq.prixAchat = p2;
+          const cc = calcBien(tmp);
+          const nego = -delta;
+          return `<tr ${delta===0?'class="base-row"':''}>
+            <td><strong>${fmt(p2)} €</strong></td>
+            <td>${fmtD(cc.rendBrut)}%</td>
+            <td>${fmtD(cc.rendNet)}%</td>
+            <td class="${cc.cashflowMensuel>=0?'pos':'neg'}">${fmtE(Math.round(cc.cashflowMensuel))}</td>
+            <td>${nego>0?`<span class="chip ch-g">−${nego}%</span>`:nego<0?`<span class="chip ch-r">+${Math.abs(nego)}%</span>`:'<span class="chip ch-b">Prix actuel</span>'}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="sec-title" style="margin-top:18px">🎲 Scénarios</div>
+  <div class="sc-grid">
+    ${['pessimiste','realiste','optimiste'].map(type => {
+      const sc = {pessimiste:scPess,realiste:scReal,optimiste:scOpti}[type];
+      const icons = {pessimiste:'📉',realiste:'📊',optimiste:'📈'};
+      const labels = {pessimiste:'Pessimiste',realiste:'Réaliste',optimiste:'Optimiste'};
+      const ov = type === 'pessimiste'
+        ? `${fmt(d.loc.loyerBas || Math.round((d.loc.loyer||0)*.85))}€ · ${d.loc.occBas||80}%`
+        : type === 'optimiste'
+        ? `${fmt(d.loc.loyerHaut || Math.round((d.loc.loyer||0)*1.1))}€ · ${d.loc.occHaut||98}%`
+        : `${fmt(d.loc.loyer||0)}€ · ${d.loc.tauxOcc||92}%`;
+      return `<div class="sc-card sc-${type} ${cs===type?'selected':''}" onclick="S.selectedScenario='${type}';save();renderDecision(getBien())">
+        <div class="sc-title">${icons[type]} ${labels[type]} ${cs===type?'<span class="selected-badge">Actif</span>':''}</div>
+        <div class="text-xs muted mb-8">${ov}</div>
+        <div class="sc-cf ${sc.cashflowMensuel>=0?'pos':'neg'}">${fmtE(Math.round(sc.cashflowMensuel))}</div>
+        <div class="text-xs muted">Rend. net ${fmtD(sc.rendNet)}% · Net-net ${fmtD(sc.rendNetNet)}%</div>
+        <div class="text-xs muted">Score : ${sc.score}/100</div>
+      </div>`;
+    }).join('')}
+  </div>
+
+  <div class="sec-title">📍 Break-even</div>
+  <div class="mg mg3">
+    <div class="mc"><div class="mc-lbl">Loyer minimum autofinancement</div><div class="mc-val">${fmt(loyerMinBreak)} €/mois</div><div class="mc-sub">Pour CF = 0</div></div>
+    <div class="mc"><div class="mc-lbl">Taux occupation minimum</div><div class="mc-val">${fmtD(occBreak)}%</div><div class="mc-sub">Pour ne pas perdre</div></div>
+    <div class="mc ${c.cashflowNetNet > 0 ? 'mc-hl' : ''}"><div class="mc-lbl">Récupération de l'apport</div><div class="mc-val">${apportRecup}</div><div class="mc-sub">Via CF net-net cumulé</div></div>
+  </div>`;
+
+  recalcPrixCible();
+}
+
+function recalcPrixCible() {
+  const b = getBien(); if (!b) return;
+  const rendCible = parseFloat(document.getElementById('rendCible')?.value) || 6;
+  const loyer = b.data.loc.loyer || 0;
+  const tauxOcc = (b.data.loc.tauxOcc||92)/100;
+  const loyerAn = loyer * 12 * tauxOcc;
+  const chargesAn = (b.data.loc.taxeFonciere||0) + (b.data.loc.pno||0) + (b.data.loc.copro||0)*12;
+  const revenus = loyerAn - chargesAn;
+  const prixCible = revenus / (rendCible/100);
+  const prix = b.data.acq.prixAchat || 0;
+  const diff = prixCible - prix;
+  const diffPct = prix > 0 ? (diff/prix*100) : 0;
+  const el = document.getElementById('prixCibleResult'); if (!el) return;
+  if (loyer === 0) { el.innerHTML = `<div class="muted text-sm">Renseignez d'abord un loyer dans Location.</div>`; return; }
+  el.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+    <div>
+      <div class="text-xs muted mb-8">Prix cible pour ${rendCible}% de rendement net</div>
+      <div class="price-big">${fmt(prixCible)} €</div>
+      ${prix > 0 ? `<div class="mt-8 text-sm" style="color:${diff<0?'var(--success)':'var(--danger)'}">
+        ${diff < 0 ? `✓ Prix actuel inférieur de ${fmt(Math.abs(diff))}€ (${fmtD(Math.abs(diffPct))}%) — objectif atteint` : `⚠ Négocier ${fmt(Math.abs(diff))}€ (${fmtD(Math.abs(diffPct))}%) pour atteindre l'objectif`}
+      </div>` : ''}
+    </div>
+    <div>
+      <div class="text-xs muted mb-8">Décomposition revenus nets</div>
+      ${kv('Loyers bruts / an', fmt(loyerAn)+' €')}
+      ${kv('Charges / an', '− '+fmt(chargesAn)+' €')}
+      ${kv('Revenus nets', fmt(revenus)+' €', true)}
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════
+// PROJECTIONS
+// ═══════════════════════════════════════════
+function renderProjections(b) {
+  const d = b.data;
+  const sc = S.selectedScenario || 'realiste';
+  const scenOverrides = {
+    pessimiste: {loyer: d.loc.loyerBas || Math.round((d.loc.loyer||0)*.85), tauxOcc: d.loc.occBas||80},
+    realiste: {loyer: d.loc.loyer||0, tauxOcc: d.loc.tauxOcc||92},
+    optimiste: {loyer: d.loc.loyerHaut || Math.round((d.loc.loyer||0)*1.1), tauxOcc: d.loc.occHaut||98}
+  };
+  const ov = scenOverrides[sc];
+  const revalo = (d.loc.revalo||1.5)/100;
+  const nbAnnees = 25;
+  const labels = [], cashflows = [], loyersData = [], valeurs = [];
+  let loyer = ov.loyer * 12 * (ov.tauxOcc/100);
+  let valeur = d.acq.prixAchat || 0;
+  const calcBase = calcBien(b, ov);
+  const creditAn = calcBase.creditAnnuel;
+  const chargesAn = calcBase.chargesTotal;
+
+  for (let a = 0; a <= nbAnnees; a++) {
+    labels.push(new Date().getFullYear() + a);
+    loyersData.push(Math.round(loyer));
+    cashflows.push(Math.round((loyer - chargesAn - creditAn) / 12));
+    valeurs.push(Math.round(valeur));
+    loyer *= (1 + revalo);
+    valeur *= 1.025;
+  }
+
+  const milestones = [1,5,10,15,20,25];
+  const dark = S.dark;
+
+  document.getElementById('mainContent').innerHTML = `
+  <div class="flex items-c just-b mb-16">
+    <div class="fw6">Scénario affiché :</div>
+    <div class="flex gap-8">
+      ${['pessimiste','realiste','optimiste'].map(t => `<button class="tab-btn ${sc===t?'active':''}" onclick="S.selectedScenario='${t}';save();renderProjections(getBien())">${t.charAt(0).toUpperCase()+t.slice(1)}</button>`).join('')}
+    </div>
+  </div>
+  <div class="cw">
+    <div class="cw-title">Cash-flow mensuel projeté — scénario ${sc}</div>
+    <div style="position:relative;height:220px"><canvas id="cCF" role="img" aria-label="Cash-flow projeté">Projection CF.</canvas></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div class="cw">
+      <div class="cw-title">Loyers bruts annuels projetés</div>
+      <div style="position:relative;height:190px"><canvas id="cLoy" role="img" aria-label="Loyers projetés">Loyers.</canvas></div>
+    </div>
+    <div class="cw">
+      <div class="cw-title">Valeur estimée du bien (+2.5%/an)</div>
+      <div style="position:relative;height:190px"><canvas id="cVal" role="img" aria-label="Valeur projetée">Valeur.</canvas></div>
+    </div>
+  </div>
+  <div class="fs">
+    <div class="fs-title">📋 Données précises par année</div>
+    <div class="tbl-scroll">
+      <table class="proj-data">
+        <thead><tr><th>Année</th><th>Cash-flow /mois</th><th>Loyers bruts /an</th><th>Valeur estimée</th><th>CF cumulé /an</th></tr></thead>
+        <tbody>
+          ${labels.map((yr, i) => {
+            const cfCumul = cashflows.slice(0,i+1).reduce((s,v) => s+v*12, 0);
+            return `<tr ${milestones.includes(i)?'class="yr-hl"':''}>
+              <td><strong>${yr}</strong>${milestones.includes(i)?` <span class="chip ch-b">An ${i}</span>`:''}
+</td>
+              <td class="${cashflows[i]>=0?'pos':'neg'}"><strong>${fmtE(cashflows[i])}</strong></td>
+              <td>${fmt(loyersData[i])} €</td>
+              <td>${fmt(valeurs[i])} €</td>
+              <td class="${cfCumul>=0?'pos':'neg'}">${fmtE(cfCumul)}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+
+  setTimeout(() => {
+    const gridColor = dark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.05)';
+    const tickColor = dark ? '#6B6862' : '#9B9890';
+    const opts = (title) => ({
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${fmt(ctx.raw)}€`}} },
+      scales:{ x:{ticks:{color:tickColor,maxTicksLimit:8,font:{size:10}},grid:{color:gridColor}}, y:{ticks:{color:tickColor,callback:v=>fmt(v)+'€',font:{size:10}},grid:{color:gridColor}} }
+    });
+    const cf = document.getElementById('cCF');
+    const loy = document.getElementById('cLoy');
+    const val = document.getElementById('cVal');
+    if (cf) new Chart(cf, {type:'bar',data:{labels,datasets:[{label:'CF mensuel',data:cashflows,backgroundColor:cashflows.map(v=>v>=0?'#3D6B4F55':'#C0392B55'),borderColor:cashflows.map(v=>v>=0?'#3D6B4F':'#C0392B'),borderWidth:1.5}]},options:opts('CF')});
+    if (loy) new Chart(loy, {type:'line',data:{labels,datasets:[{label:'Loyers',data:loyersData,borderColor:'#C17B3E',backgroundColor:'#C17B3E22',tension:.4,fill:true,borderWidth:2,pointRadius:0}]},options:opts('Loyers')});
+    if (val) new Chart(val, {type:'line',data:{labels,datasets:[{label:'Valeur',data:valeurs,borderColor:dark?'#A0A0A0':'#1A1916',backgroundColor:dark?'#A0A0A022':'#1A191622',tension:.4,fill:true,borderWidth:2,pointRadius:0}]},options:opts('Valeur')});
+  }, 100);
+}
+
+// ═══════════════════════════════════════════
+// COMPARATEUR
+// ═══════════════════════════════════════════
+function renderCompare() {
+  document.getElementById('tbTitle').textContent = 'Comparateur de biens';
+  document.getElementById('tbActions').innerHTML = '';
+  const allBiens = S.portfolios.flatMap(p => p.biens.map(b => ({b,p})));
+
+  if (allBiens.length < 2) {
+    document.getElementById('mainContent').innerHTML = `<div class="alert a-info">Ajoutez au moins 2 biens pour utiliser le comparateur.</div>`;
+    return;
+  }
+
+  const items = allBiens.slice(0, 4);
+  const calcs = items.map(({b}) => calcBien(b));
+
+  // Trouver le meilleur sur chaque critère
+  const bestRendBrut = Math.max(...calcs.map(c => c.rendBrut));
+  const bestRendNet = Math.max(...calcs.map(c => c.rendNet));
+  const bestRendNetNet = Math.max(...calcs.map(c => c.rendNetNet));
+  const bestCF = Math.max(...calcs.map(c => c.cashflowMensuel));
+  const bestCFnn = Math.max(...calcs.map(c => c.cashflowNetNet));
+  const bestScore = Math.max(...calcs.map(c => c.score));
+
+  // Score composite pour orientation
+  const compositeScores = calcs.map((c, i) => {
+    let pts = 0;
+    if (c.rendBrut === bestRendBrut) pts += 1;
+    if (c.rendNet === bestRendNet) pts += 2;
+    if (c.rendNetNet === bestRendNetNet) pts += 2;
+    if (c.cashflowMensuel === bestCF) pts += 2;
+    if (c.cashflowNetNet === bestCFnn) pts += 2;
+    if (c.score === bestScore) pts += 1;
+    return {idx: i, pts, b: items[i].b, c};
+  }).sort((a,b) => b.pts - a.pts);
+
+  const winner = compositeScores[0];
+  const winnerIdx = winner.idx;
+
+  // Raisons du gagnant
+  const reasons = [];
+  const wc = calcs[winnerIdx];
+  if (wc.rendNet === bestRendNet) reasons.push(`meilleur rendement net (${fmtD(wc.rendNet)}%)`);
+  if (wc.cashflowMensuel === bestCF) reasons.push(`meilleur cash-flow (${fmtE(Math.round(wc.cashflowMensuel))})`);
+  if (wc.rendNetNet === bestRendNetNet) reasons.push(`meilleure rentabilité après impôt (${fmtD(wc.rendNetNet)}%)`);
+  if (wc.score === bestScore) reasons.push(`score le plus élevé (${wc.score}/100 — ${wc.scoreLabel})`);
+
+  const cell = (val, isBest, isNeg=false) =>
+    `<td style="${isBest?'font-weight:700;color:var(--success)':isNeg?'color:var(--danger)':''}">${val}${isBest?' ⭐':''}</td>`;
+
+  const rows = [
+    {label:"Prix d'achat", vals: calcs.map(c=>fmt(c.prixAchat)+' €'), best: null},
+    {label:"Total investi", vals: calcs.map(c=>fmt(c.totalInvesti)+' €'), best: null},
+    {label:"Apport", vals: calcs.map((c,i)=>fmt(items[i].b.data.acq.apport||0)+' €'), best: null},
+    {label:"Mensualité crédit", vals: calcs.map(c=>fmt(c.mensualite)+' €/m'), best: null},
+    {label:"Loyer mensuel", vals: calcs.map(c=>fmt(c.loyerMensuel)+' €/m'), bestVal: Math.max(...calcs.map(c=>c.loyerMensuel))},
+    {label:"Rendement brut", vals: calcs.map(c=>fmtD(c.rendBrut)+'%'), bestVal: bestRendBrut},
+    {label:"Rendement net", vals: calcs.map(c=>fmtD(c.rendNet)+'%'), bestVal: bestRendNet},
+    {label:"Rendement net-net", vals: calcs.map(c=>fmtD(c.rendNetNet)+'%'), bestVal: bestRendNetNet},
+    {label:"Cash-flow /mois", vals: calcs.map(c=>fmtE(Math.round(c.cashflowMensuel))), bestVal: bestCF, signed: true},
+    {label:"CF net-net /mois", vals: calcs.map(c=>fmtE(Math.round(c.cashflowNetNet))), bestVal: bestCFnn, signed: true},
+    {label:"Score /100", vals: calcs.map(c=>`${c.score}/100 — ${c.scoreLabel}`), bestVal: bestScore},
+    {label:"Alertes", vals: calcs.map(c=>c.alerts.length > 0 ? c.alerts.map(a=>'• '+a.msg).join('<br>') : '✓ Aucune alerte'), best: null},
+  ];
+
+  document.getElementById('mainContent').innerHTML = `
+  <div class="alert a-ok" style="font-size:13px">
+    <strong>🏆 Recommandation : ${winner.b.nom}</strong><br>
+    Ce bien se démarque sur ${reasons.length} critère(s) : ${reasons.join(', ')}.
+    ${compositeScores.length > 1 ? `<br><span class="muted" style="font-size:11px">2ème : ${compositeScores[1].b.nom} · 3ème : ${compositeScores[2]?.b.nom || '—'}</span>` : ''}
+  </div>
+  <div class="sc-grid" style="grid-template-columns:repeat(${items.length},1fr);margin-bottom:18px">
+    ${items.map(({b}, i) => {
+      const c = calcs[i];
+      const isWin = i === winnerIdx;
+      return `<div class="mc ${isWin?'mc-hl':''}" style="${isWin?'border:2px solid var(--green)':''}">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+          <span style="font-size:16px">${typeIcon(b.type)}</span>
+          <div>
+            <div class="fw6" style="font-size:12px">${b.nom}${isWin?' 🏆':''}</div>
+            <div class="text-xs muted">${b.ville||b.adresse||'—'}</div>
+          </div>
+        </div>
+        <div class="mc-val ${c.cashflowMensuel>=0?'pos':'neg'}">${fmtE(Math.round(c.cashflowMensuel))}</div>
+        <div class="mc-sub">Score : ${c.score}/100</div>
+      </div>`;
+    }).join('')}
+  </div>
+  <div class="fs" style="padding:0;overflow-x:auto">
+    <table class="sens-tbl" style="min-width:500px">
+      <thead><tr><th style="text-align:left">Critère</th>${items.map(({b},i)=>`<th ${i===winnerIdx?'style="color:var(--green)"':''}>${b.nom}${i===winnerIdx?' 🏆':''}</th>`).join('')}</tr></thead>
+      <tbody>
+        ${rows.map(row => `<tr>
+          <td class="fw6" style="text-align:left">${row.label}</td>
+          ${calcs.map((c,i) => {
+            const isBest = row.bestVal !== undefined && parseFloat(row.vals[i]) === row.bestVal;
+            const isNeg = row.signed && c[row.label] < 0;
+            return `<td style="${i===winnerIdx?'font-weight:600':''}${isBest?';color:var(--success)':row.signed && calcs[i].cashflowMensuel < 0 && row.label.includes('Cash') ?';color:var(--danger)':''}">${row.vals[i]}${isBest?' ⭐':''}</td>`;
+          }).join('')}
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>
+  ${allBiens.length > 4 ? `<div class="alert a-info" style="margin-top:12px">Seuls les 4 premiers biens sont affichés. Vous avez ${allBiens.length} biens au total.</div>` : ''}`;
+}
+
+
+// ═══════════════════════════════════════════
+// ARTISANS
+// ═══════════════════════════════════════════
+const SPECIALITES = ['Maçonnerie','Charpente','Toiture','Façade','Isolation','Menuiseries','Plomberie','Chauffage','Climatisation','Électricité','Carrelage','Sol','Peinture','Cuisine','Salle de bain','VRD','Ascenseur','Architecte','Géomètre','Bureau d\'études','Multi-corps d\'état','Autre'];
+
+function getArtisanStats(artisanId) {
+  const allTravaux = S.portfolios.flatMap(p =>
+    p.biens.flatMap(b => [
+      ...(b.data.travauxPC || []),
+      ...(b.data.lots || []).flatMap(l => l.travaux || [])
+    ])
+  ).filter(t => t.artisanId === artisanId);
+  return {
+    total: allTravaux.length,
+    valide: allTravaux.filter(t => t.valide).length,
+    montant: allTravaux.reduce((s,t) => s + (parseFloat(t.reel || t.estime) || 0), 0),
+    libelles: allTravaux.map(t => t.nom).filter(Boolean)
+  };
+}
+
+function renderArtisans() {
+  document.getElementById('tbTitle').textContent = 'Annuaire artisans';
+  document.getElementById('tbActions').innerHTML = `<button class="btn-pri" onclick="openMoArtisan()">+ Nouvel artisan</button>`;
+
+  const artisans = S.artisans || [];
+
+  if (artisans.length === 0) {
+    document.getElementById('mainContent').innerHTML = `
+    <div class="empty">
+      <div class="empty-icon">🔧</div>
+      <div class="empty-title">Aucun artisan enregistré</div>
+      <div class="empty-sub">Ajoutez vos artisans pour les associer<br>à vos postes de travaux.</div>
+    </div>`;
+    return;
+  }
+
+  document.getElementById('mainContent').innerHTML = `
+  <div class="artisan-grid">
+    ${artisans.map(a => {
+      const stats = getArtisanStats(a.id);
+      return `<div class="artisan-card" onclick="editArtisan('${a.id}')">
+        <div class="artisan-badge ch-b">${a.specialite || 'N/A'}</div>
+        <div class="artisan-name">${a.nom}</div>
+        <div class="artisan-spec">${a.specialite || '—'}</div>
+        <div class="artisan-info">
+          ${a.telephone ? '📞 ' + a.telephone + '<br>' : ''}
+          ${a.email ? '✉️ ' + a.email + '<br>' : ''}
+          ${a.siret ? '🏢 SIRET : ' + a.siret + '<br>' : ''}
+          ${a.adresse ? '📍 ' + a.adresse : ''}
+        </div>
+        <div class="artisan-stats">
+          <div class="artisan-stat"><strong>${stats.total}</strong>chantiers</div>
+          <div class="artisan-stat"><strong>${stats.valide}</strong>terminés</div>
+          <div class="artisan-stat"><strong>${fmt(stats.montant)} €</strong>volume</div>
+        </div>
+        ${stats.libelles.length > 0 ? `<div class="text-xs muted mt-8">Travaux : ${stats.libelles.slice(0,3).join(', ')}${stats.libelles.length > 3 ? '...' : ''}</div>` : ''}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function openMoArtisan(artisanId = null) {
+  const a = artisanId ? S.artisans.find(x => x.id === artisanId) : null;
+  const v = k => a ? (a[k] || '') : '';
+  document.getElementById('moArtisanTitle').textContent = a ? 'Modifier artisan' : 'Nouvel artisan';
+  document.getElementById('moArtisanId').value = artisanId || '';
+  document.getElementById('a-nom').value = v('nom');
+  document.getElementById('a-specialite').value = v('specialite');
+  document.getElementById('a-tel').value = v('telephone');
+  document.getElementById('a-email').value = v('email');
+  document.getElementById('a-siret').value = v('siret');
+  document.getElementById('a-adresse').value = v('adresse');
+  document.getElementById('a-notes').value = v('notes');
+  document.getElementById('moArtisan').classList.add('open');
+}
+
+function editArtisan(id) { openMoArtisan(id); }
+
+function saveArtisan() {
+  const id = document.getElementById('moArtisanId').value;
+  const data = {
+    id: id || uid(),
+    nom: document.getElementById('a-nom').value.trim(),
+    specialite: document.getElementById('a-specialite').value,
+    telephone: document.getElementById('a-tel').value.trim(),
+    email: document.getElementById('a-email').value.trim(),
+    siret: document.getElementById('a-siret').value.trim(),
+    adresse: document.getElementById('a-adresse').value.trim(),
+    notes: document.getElementById('a-notes').value.trim(),
+    createdAt: Date.now()
+  };
+  if (!data.nom) return;
+  if (!S.artisans) S.artisans = [];
+  if (id) {
+    const idx = S.artisans.findIndex(a => a.id === id);
+    if (idx !== -1) S.artisans[idx] = data;
+  } else {
+    S.artisans.push(data);
+  }
+  save();
+  document.getElementById('moArtisan').classList.remove('open');
+  renderArtisans();
+}
+
+function deleteArtisan(id) {
+  if (!confirm('Supprimer cet artisan ?')) return;
+  S.artisans = S.artisans.filter(a => a.id !== id);
+  save();
+  document.getElementById('moArtisan').classList.remove('open');
+  renderArtisans();
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+document.querySelectorAll('.mo').forEach(m => m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); }));
+load();
+document.body.classList.toggle('dark', S.dark);
+render();
+
+// ═══════════════════════════════════════════
+// MOBILE SIDEBAR
+// ═══════════════════════════════════════════
+function openSidebar() {
+  document.getElementById('sb').classList.add('mobile-open');
+  document.getElementById('sb-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeSidebar() {
+  document.getElementById('sb').classList.remove('mobile-open');
+  document.getElementById('sb-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+// Close sidebar when a navigation item is clicked on mobile
+function mobileNavThen(fn) {
+  if (window.innerWidth <= 768) closeSidebar();
+  fn();
+}
+</script>
+
+<!-- MODAL ARTISAN -->
+<div class="mo" id="moArtisan">
+  <div class="mo-box" style="width:560px">
+    <div class="mo-title" id="moArtisanTitle">Nouvel artisan</div>
+    <input type="hidden" id="moArtisanId">
+    <div class="fg fg2">
+      <div class="fgrp fg-full"><label>Nom / Raison sociale</label><input id="a-nom" type="text" placeholder="Dupont Bâtiment SARL"></div>
+      <div class="fgrp"><label>Spécialité</label>
+        <select id="a-specialite">
+          <option value="">— Choisir —</option>
+          <option>Maçonnerie</option><option>Charpente</option><option>Toiture</option>
+          <option>Façade</option><option>Isolation</option><option>Menuiseries</option>
+          <option>Plomberie</option><option>Chauffage</option><option>Climatisation</option>
+          <option>Électricité</option><option>Carrelage</option><option>Sol</option>
+          <option>Peinture</option><option>Cuisine</option><option>Salle de bain</option>
+          <option>VRD</option><option>Ascenseur</option><option>Architecte</option>
+          <option>Géomètre</option><option>Bureau d'études</option>
+          <option>Multi-corps d'état</option><option>Autre</option>
+        </select>
+      </div>
+      <div class="fgrp"><label>Téléphone</label><input id="a-tel" type="tel" placeholder="06 12 34 56 78"></div>
+      <div class="fgrp"><label>Email</label><input id="a-email" type="email" placeholder="contact@artisan.fr"></div>
+      <div class="fgrp"><label>N° SIRET</label><input id="a-siret" type="text" placeholder="123 456 789 00010" maxlength="17"></div>
+      <div class="fgrp fg-full"><label>Adresse</label><input id="a-adresse" type="text" placeholder="12 rue du Bâtiment, 75001 Paris"></div>
+      <div class="fgrp fg-full"><label>Notes / Appréciation</label><textarea id="a-notes" rows="2" style="resize:none" placeholder="Fiable, rapide, bon rapport qualité/prix..."></textarea></div>
+    </div>
+    <div class="mo-acts">
+      <button class="btn-sec" style="color:var(--danger);border-color:var(--danger)" onclick="deleteArtisan(document.getElementById('moArtisanId').value)" id="btnDeleteArtisan">Supprimer</button>
+      <button class="btn-sec" onclick="closeMo('moArtisan')">Annuler</button>
+      <button class="btn-pri" onclick="saveArtisan()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

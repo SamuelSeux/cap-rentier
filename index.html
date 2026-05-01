@@ -2210,10 +2210,20 @@ function renderImmeuble(p) {
     `<button class="tab-btn ${S.activeTab==='synthese'?'active':''}" onclick="S.activeTab='synthese';save();renderImmeuble(S.portfolios.find(x=>x.id==='${pid}'))">Synthèse</button>` +
     `<button class="tab-btn ${S.activeTab==='lots'?'active':''}" onclick="S.activeTab='lots';S._editLotIdx=undefined;save();renderImmeuble(S.portfolios.find(x=>x.id==='${pid}'))">Lots</button>` +
     `<button class="tab-btn ${S.activeTab==='acquisition'?'active':''}" onclick="S.activeTab='acquisition';save();renderImmeuble(S.portfolios.find(x=>x.id==='${pid}'))">Acquisition</button>` +
+    `<button class="tab-btn ${S.activeTab==='travaux'?'active':''}" onclick="S.activeTab='travaux';save();renderImmeuble(S.portfolios.find(x=>x.id==='${pid}'))">Travaux</button>` +
+    `<button class="tab-btn ${S.activeTab==='location'?'active':''}" onclick="S.activeTab='location';save();renderImmeuble(S.portfolios.find(x=>x.id==='${pid}'))">Location</button>` +
+    `<button class="tab-btn ${S.activeTab==='fiscal'?'active':''}" onclick="S.activeTab='fiscal';save();renderImmeuble(S.portfolios.find(x=>x.id==='${pid}'))">Fiscal</button>` +
+    `<button class="tab-btn ${S.activeTab==='decision'?'active':''}" onclick="S.activeTab='decision';save();renderImmeuble(S.portfolios.find(x=>x.id==='${pid}'))">Décision</button>` +
+    `<button class="tab-btn ${S.activeTab==='projections'?'active':''}" onclick="S.activeTab='projections';save();renderImmeuble(S.portfolios.find(x=>x.id==='${pid}'))">Projections</button>` +
     `<button class="ib-btn" onclick="deletePf('${pid}')" title="Supprimer" style="padding:5px 8px;font-size:13px;border:1px solid var(--border);border-radius:var(--rsm)">🗑</button>`;
 
   if (S.activeTab === 'lots') { renderLotsImmeuble(p); return; }
   if (S.activeTab === 'acquisition') { renderAcquisitionImmeuble(p); return; }
+  if (S.activeTab === 'travaux') { renderTravauxImmeuble(p); return; }
+  if (S.activeTab === 'location') { renderLocationImmeuble(p); return; }
+  if (S.activeTab === 'fiscal') { renderFiscalImmeuble(p); return; }
+  if (S.activeTab === 'decision') { renderDecisionImmeuble(p); return; }
+  if (S.activeTab === 'projections') { renderProjectionsImmeuble(p); return; }
   renderSyntheseImmeuble(p);
 }
 
@@ -2403,6 +2413,455 @@ function openLotEditor(pfId, lotIdx) {
   else S._editLotIdx = undefined;
   save(); renderImmeuble(S.portfolios.find(p => p.id === pfId));
 }
+
+// ─────────────────────────────────────────────
+// TRAVAUX IMMEUBLE
+// ─────────────────────────────────────────────
+function renderTravauxImmeuble(p) {
+  if (!p.data) p.data = defaultData('immeuble');
+  if (!p.data.travauxPC) p.data.travauxPC = [];
+  const lots = p.data.lots || [];
+  const pid = p.id;
+
+  const totalEstPC = p.data.travauxPC.reduce((s,t) => s+(parseFloat(t.estime)||0), 0);
+  const totalReelPC = p.data.travauxPC.reduce((s,t) => s+(parseFloat(t.reel)||0), 0);
+  const totalEstLots = lots.flatMap(l => l.travaux||[]).reduce((s,t) => s+(parseFloat(t.estime)||0), 0);
+  const totalReelLots = lots.flatMap(l => l.travaux||[]).reduce((s,t) => s+(parseFloat(t.reel)||0), 0);
+
+  let lotsHtml = lots.map((lot, li) => {
+    const lt = lot.travaux || [];
+    const estLot = lt.reduce((s,t) => s+(parseFloat(t.estime)||0), 0);
+    const reelLot = lt.reduce((s,t) => s+(parseFloat(t.reel)||0), 0);
+    return `<div class="fs">
+      <div class="fs-title">🚪 Travaux — ${lot.nom||'Lot '+(li+1)}</div>
+      <div class="mg mg3" style="margin-bottom:14px">
+        <div class="mc"><div class="mc-lbl">Estimé</div><div class="mc-val">${fmt(estLot)} €</div></div>
+        <div class="mc"><div class="mc-lbl">Réel</div><div class="mc-val ${reelLot>estLot&&estLot>0?'neg':''}">${fmt(reelLot)} €</div></div>
+        <div class="mc"><div class="mc-lbl">Loyer après travaux</div><div class="mc-val">${fmt(lot.loyerApresTravaux||0)} €/m</div></div>
+      </div>
+      ${twTableImm(lt, 'lot-'+li)}
+      <button class="btn-add" onclick="addTwLotImm('${pid}',${li})">+ Ajouter un poste travaux</button>
+      <div class="fgrp" style="margin-top:12px;max-width:240px">
+        <label>Loyer estimé après travaux (€/mois)</label>
+        <input type="number" value="${lot.loyerApresTravaux||''}" onchange="updateLotField_imm('${pid}',${li},'loyerApresTravaux',parseFloat(this.value)||0)" placeholder="800">
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('mainContent').innerHTML = `
+  <div class="fs">
+    <div class="fs-title">🏢 Travaux — Parties communes</div>
+    <div class="mg mg3" style="margin-bottom:14px">
+      <div class="mc"><div class="mc-lbl">Estimé</div><div class="mc-val">${fmt(totalEstPC)} €</div></div>
+      <div class="mc"><div class="mc-lbl">Réel</div><div class="mc-val ${totalReelPC>totalEstPC&&totalEstPC>0?'neg':''}">${fmt(totalReelPC)} €</div></div>
+      <div class="mc"><div class="mc-lbl">Écart</div><div class="mc-val ${totalReelPC>totalEstPC?'neg':'pos'}">${fmt(totalReelPC-totalEstPC)} €</div></div>
+    </div>
+    ${twTableImm(p.data.travauxPC, 'pc-imm')}
+    <button class="btn-add" onclick="addTwPCImm('${pid}')">+ Ajouter un poste</button>
+  </div>
+  ${lotsHtml}
+  <div class="fs">
+    <div class="fs-title">📊 Récap travaux</div>
+    <table class="tbl"><thead><tr><th>Périmètre</th><th>Estimé</th><th>Réel</th></tr></thead>
+    <tbody>
+      <tr><td>Parties communes</td><td>${fmt(totalEstPC)} €</td><td>${fmt(totalReelPC)} €</td></tr>
+      <tr><td>Lots</td><td>${fmt(totalEstLots)} €</td><td>${fmt(totalReelLots)} €</td></tr>
+      <tr class="base"><td><strong>TOTAL</strong></td><td><strong>${fmt(totalEstPC+totalEstLots)} €</strong></td><td><strong>${fmt(totalReelPC+totalReelLots)} €</strong></td></tr>
+    </tbody></table>
+  </div>`;
+}
+
+function addTwPCImm(pid) {
+  const p = S.portfolios.find(x=>x.id===pid); if(!p) return;
+  if(!p.data) p.data = defaultData('immeuble');
+  if(!p.data.travauxPC) p.data.travauxPC = [];
+  p.data.travauxPC.push({id:uid(),nom:'',cat:'Autre',estime:0,reel:0,duree:0,statut:'planifié',valide:false});
+  save(); renderImmeuble(p);
+}
+function addTwLotImm(pid, li) {
+  const p = S.portfolios.find(x=>x.id===pid); if(!p) return;
+  if(!p.data.lots[li].travaux) p.data.lots[li].travaux = [];
+  p.data.lots[li].travaux.push({id:uid(),nom:'',cat:'Autre',estime:0,reel:0,duree:0,statut:'planifié',valide:false});
+  save(); renderImmeuble(p);
+}
+function updateLotField_imm(pid, li, key, val) {
+  const p = S.portfolios.find(x=>x.id===pid); if(!p) return;
+  p.data.lots[li][key] = val; save(); renderSidebar();
+}
+function updateTwImm(prefix, i, key, val, numeric=true) {
+  const p = S.portfolios.find(x=>x.id===S.activePid); if(!p) return;
+  let arr;
+  if (prefix === 'pc-imm') arr = p.data.travauxPC;
+  else { const li = parseInt(prefix.split('-')[1]); arr = p.data.lots[li].travaux; }
+  if (!arr || !arr[i]) return;
+  arr[i][key] = numeric ? (parseFloat(val)||0) : val;
+  save(); renderSidebar();
+}
+function removeTwImm(prefix, i) {
+  const p = S.portfolios.find(x=>x.id===S.activePid); if(!p) return;
+  if (prefix === 'pc-imm') p.data.travauxPC.splice(i,1);
+  else { const li = parseInt(prefix.split('-')[1]); p.data.lots[li].travaux.splice(i,1); }
+  save(); renderImmeuble(p);
+}
+function validateTwImm(prefix, i) {
+  const p = S.portfolios.find(x=>x.id===S.activePid); if(!p) return;
+  let tw;
+  if (prefix === 'pc-imm') tw = p.data.travauxPC[i];
+  else { const li = parseInt(prefix.split('-')[1]); tw = p.data.lots[li].travaux[i]; }
+  if (!tw) return;
+  if (!tw.reel) { alert('Saisissez le coût réel avant de valider.'); return; }
+  tw.valide = true; tw.statut = 'terminé';
+  save(); renderImmeuble(p);
+}
+function unvalidateTwImm(prefix, i) {
+  const p = S.portfolios.find(x=>x.id===S.activePid); if(!p) return;
+  if (prefix === 'pc-imm') p.data.travauxPC[i].valide = false;
+  else { const li = parseInt(prefix.split('-')[1]); p.data.lots[li].travaux[i].valide = false; }
+  save(); renderImmeuble(p);
+}
+
+// Override twTable updateTw/removeTw/validateTw for immeuble context
+// We use a flag to know if we're in immeuble mode
+function twTableImm(rows, prefix) {
+  if (!rows || rows.length === 0) return '<div class="muted text-sm" style="padding:8px 0">Aucun poste.</div>';
+  const artisanOpts = (S.artisans||[]).map(a => '<option value="'+a.id+'">'+a.nom+' ('+a.specialite+')</option>').join('');
+  return '<div class="tw-hdr" style="display:grid;grid-template-columns:1fr 110px 85px 85px 65px 95px 68px 28px;gap:6px;padding:4px 0 6px;border-bottom:1px solid var(--border2);font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--t3)"><span>Poste</span><span>Catégorie</span><span>Estimé (€)</span><span>Réel (€)</span><span>Durée</span><span>Statut</span><span></span><span></span></div>' +
+  rows.map((t, i) => `<div style="display:grid;grid-template-columns:1fr 110px 85px 85px 65px 95px 68px 28px;gap:6px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);${t.valide?'opacity:.8;background:var(--s2)':''}">
+    <input type="text" value="${t.nom||''}" onchange="updateTwImm('${prefix}',${i},'nom',this.value,false)" placeholder="Description">
+    <select onchange="updateTwImm('${prefix}',${i},'cat',this.value,false)">${TW_CATS.map(c=>`<option ${t.cat===c?'selected':''}>${c}</option>`).join('')}</select>
+    <input type="number" value="${t.estime||''}" onchange="updateTwImm('${prefix}',${i},'estime',this.value)" placeholder="0">
+    <input type="number" value="${t.reel||''}" onchange="updateTwImm('${prefix}',${i},'reel',this.value)" placeholder="0">
+    <input type="number" value="${t.duree||''}" onchange="updateTwImm('${prefix}',${i},'duree',this.value)" placeholder="0">
+    <select onchange="updateTwImm('${prefix}',${i},'statut',this.value,false)">${TW_STATUTS.map(s=>`<option ${t.statut===s?'selected':''}>${s}</option>`).join('')}</select>
+    ${t.valide
+      ? `<button class="btn-validate" style="background:var(--t3);font-size:10px" onclick="unvalidateTwImm('${prefix}',${i})">✓ OK</button>`
+      : `<button class="btn-validate" onclick="validateTwImm('${prefix}',${i})">Valider</button>`}
+    <button class="btn-rm" onclick="removeTwImm('${prefix}',${i})">×</button>
+  </div>`).join('');
+}
+
+// ─────────────────────────────────────────────
+// LOCATION IMMEUBLE
+// ─────────────────────────────────────────────
+function renderLocationImmeuble(p) {
+  if (!p.data) p.data = defaultData('immeuble');
+  if (!p.data.loc) p.data.loc = {loyer:0,charges:0,tauxOcc:92,revalo:1.5,fraisGestion:0,taxeFonciere:0,pno:0,copro:0,loyerBas:0,loyerHaut:0,occBas:80,occHaut:98};
+  const d = p.data.loc;
+  const pid = p.id;
+  const lots = p.data.lots || [];
+  const loyerAuto = lots.reduce((s,l) => s+(parseFloat(l.loyer)||0), 0);
+  const prixAchat = p.prixAchat || 0;
+  const tfAuto = Math.round(loyerAuto * 0.9);
+  const pnoAuto = Math.round(prixAchat * 0.0015);
+
+  document.getElementById('mainContent').innerHTML = `
+  ${loyerAuto > 0 ? `<div class="alert a-ok">Loyer calculé depuis les lots : <strong>${fmt(loyerAuto)} €/mois</strong></div>` : ''}
+  <div class="fs">
+    <div class="fs-title">🏠 Revenus locatifs</div>
+    <div class="fg fg2">
+      <div class="fgrp"><label>Loyer mensuel HC (€) ${loyerAuto>0?'<span class="calc-val">Auto depuis lots</span>':''}</label>
+        <input type="number" value="${d.loyer||loyerAuto||''}" ${loyerAuto>0?'readonly style="background:var(--s2)"':''}
+          onchange="S.portfolios.find(x=>x.id==='${pid}').data.loc.loyer=parseFloat(this.value)||0;save()"></div>
+      <div class="fgrp"><label>Charges (€/mois)</label>
+        <input type="number" value="${d.charges||''}" onchange="S.portfolios.find(x=>x.id==='${pid}').data.loc.charges=parseFloat(this.value)||0;save()"></div>
+      <div class="fgrp">
+        <label>Taux d'occupation — <span class="calc-val">${d.tauxOcc||92}%</span></label>
+        <input type="range" min="0" max="100" value="${d.tauxOcc||92}"
+          oninput="this.previousElementSibling.querySelector('.calc-val').textContent=this.value+'%';S.portfolios.find(x=>x.id==='${pid}').data.loc.tauxOcc=parseFloat(this.value)||92;save()">
+      </div>
+      <div class="fgrp"><label>Revalorisation loyer/an (%)</label>
+        <input type="number" step="0.1" value="${d.revalo||1.5}" onchange="S.portfolios.find(x=>x.id==='${pid}').data.loc.revalo=parseFloat(this.value)||1.5;save()"></div>
+    </div>
+  </div>
+  <div class="fs">
+    <div class="fs-title">📋 Charges annuelles <span class="text-xs muted" style="font-weight:400;margin-left:6px">Estimées auto — modifiables</span></div>
+    <div class="fg fg2">
+      <div class="fgrp"><label>Frais de gestion (%)</label>
+        <input type="number" step="0.5" value="${d.fraisGestion||0}" onchange="S.portfolios.find(x=>x.id==='${pid}').data.loc.fraisGestion=parseFloat(this.value)||0;save()"></div>
+      <div class="fgrp"><label>Taxe foncière (€/an) <span class="calc-val">Est: ${fmt(tfAuto)} €</span></label>
+        <input type="number" value="${d.taxeFonciere||''}" onchange="S.portfolios.find(x=>x.id==='${pid}').data.loc.taxeFonciere=parseFloat(this.value)||0;save()" placeholder="${tfAuto}"></div>
+      <div class="fgrp"><label>Assurance PNO (€/an) <span class="calc-val">Est: ${fmt(pnoAuto)} €</span></label>
+        <input type="number" value="${d.pno||''}" onchange="S.portfolios.find(x=>x.id==='${pid}').data.loc.pno=parseFloat(this.value)||0;save()" placeholder="${pnoAuto}"></div>
+      <div class="fgrp"><label>Charges copropriété (€/mois)</label>
+        <input type="number" value="${d.copro||''}" onchange="S.portfolios.find(x=>x.id==='${pid}').data.loc.copro=parseFloat(this.value)||0;save()"></div>
+    </div>
+    <button class="btn-add" style="margin-top:10px" onclick="autoFillLocImm('${pid}')">↺ Recalculer estimations auto</button>
+  </div>
+  <div class="fs">
+    <div class="fs-title">📊 Fourchettes scénarios</div>
+    <div class="fg fg2">
+      <div class="fgrp"><label>Loyer bas — pessimiste (€)</label>
+        <input type="number" value="${d.loyerBas||''}" onchange="S.portfolios.find(x=>x.id==='${pid}').data.loc.loyerBas=parseFloat(this.value)||0;save()" placeholder="${Math.round((loyerAuto||d.loyer||0)*.85)}"></div>
+      <div class="fgrp"><label>Loyer haut — optimiste (€)</label>
+        <input type="number" value="${d.loyerHaut||''}" onchange="S.portfolios.find(x=>x.id==='${pid}').data.loc.loyerHaut=parseFloat(this.value)||0;save()" placeholder="${Math.round((loyerAuto||d.loyer||0)*1.1)}"></div>
+      <div class="fgrp"><label>Taux occupation bas (%)</label>
+        <input type="number" value="${d.occBas||80}" onchange="S.portfolios.find(x=>x.id==='${pid}').data.loc.occBas=parseFloat(this.value)||80;save()"></div>
+      <div class="fgrp"><label>Taux occupation haut (%)</label>
+        <input type="number" value="${d.occHaut||98}" onchange="S.portfolios.find(x=>x.id==='${pid}').data.loc.occHaut=parseFloat(this.value)||98;save()"></div>
+    </div>
+  </div>`;
+
+  // Auto-set loyer from lots
+  if (loyerAuto > 0 && !d.loyer) {
+    p.data.loc.loyer = loyerAuto; save();
+  }
+}
+
+function autoFillLocImm(pid) {
+  const p = S.portfolios.find(x=>x.id===pid); if(!p||!p.data) return;
+  const lots = p.data.lots || [];
+  const loyerAuto = lots.reduce((s,l) => s+(parseFloat(l.loyer)||0), 0);
+  p.data.loc.taxeFonciere = Math.round(loyerAuto * 0.9);
+  p.data.loc.pno = Math.round((p.prixAchat||0) * 0.0015);
+  save(); renderImmeuble(p);
+}
+
+// ─────────────────────────────────────────────
+// FISCAL IMMEUBLE
+// ─────────────────────────────────────────────
+function renderFiscalImmeuble(p) {
+  if (!p.data) p.data = defaultData('immeuble');
+  if (!p.data.fiscal) p.data.fiscal = {regime:'nu'};
+  const pid = p.id;
+  const regime = p.data.fiscal.regime || 'nu';
+
+  // Build a fake "bien" object so we can reuse calcBien
+  const fakeBien = {
+    type: 'immeuble', data: {
+      acq: {prixAchat: p.prixAchat||0, fraisNotaire: p.fraisNotaire||7.5, apport: p.apport||0},
+      emp: {montant: p.empruntMontant||0, taux: p.empruntTaux||3.8, duree: p.empruntDuree||20, assurance: p.empruntAssurance||0.12},
+      travauxPC: p.data.travauxPC||[], lots: p.data.lots||[],
+      loc: p.data.loc || {loyer:0,charges:0,tauxOcc:92,revalo:1.5,fraisGestion:0,taxeFonciere:0,pno:0,copro:0},
+      fiscal: p.data.fiscal
+    }
+  };
+
+  const regimes = [
+    {id:'nu', title:'Location nue', sub:'Régime réel', detail:'Déduction des charges réelles. Revenus imposés à votre TMI + prélèvements sociaux.'},
+    {id:'micro-bic', title:'Meublé Micro-BIC', sub:'Abattement 50%', detail:'Abattement forfaitaire 50% sur recettes brutes.'},
+    {id:'lmnp-reel', title:'LMNP Réel', sub:'Amortissements', detail:'Amortissement du bien (~2.5%/an). Peut neutraliser l\'imposition.'},
+    {id:'sci-is', title:'SCI à l\'IS', sub:'IS 15%/25%', detail:'IS 15% jusqu\'à 42 500€, 25% au-delà. Double imposition à la revente.'},
+  ];
+
+  const tmi = calcTMI(S.foyer.revenu||60000, S.foyer.parts||1);
+  const compares = regimes.map(r => {
+    const tmp = JSON.parse(JSON.stringify(fakeBien));
+    tmp.data.fiscal.regime = r.id;
+    const c = calcBien(tmp);
+    return {r, c};
+  });
+
+  document.getElementById('mainContent').innerHTML = `
+  <div class="alert a-info">TMI foyer : <strong>${S.foyer.tmiManuel !== null ? S.foyer.tmiManuel : tmi}%</strong> + PS ${S.foyer.ps||17.2}%. <span style="cursor:pointer;color:var(--green)" onclick="showFoyer()">Modifier →</span></div>
+  <div class="reg-sel">
+    ${regimes.map(r => `<div class="reg-btn ${regime===r.id?'active':''}" onclick="S.portfolios.find(x=>x.id==='${pid}').data.fiscal.regime='${r.id}';save();renderImmeuble(S.portfolios.find(x=>x.id==='${pid}'))">
+      <div class="reg-title">${r.title}</div><div class="reg-sub">${r.sub}</div>
+    </div>`).join('')}
+  </div>
+  <div class="fs" style="margin-bottom:14px">
+    <div class="fs-title">📖 ${regimes.find(r=>r.id===regime)?.title}</div>
+    <p class="text-sm" style="line-height:1.6;color:var(--t2)">${regimes.find(r=>r.id===regime)?.detail}</p>
+  </div>
+  <div class="fs" style="padding:0;overflow:hidden">
+    <table class="sens-tbl">
+      <thead><tr><th>Régime</th><th>Revenus nets</th><th>Impôt / an</th><th>CF net-net / mois</th><th>Rend. net-net</th></tr></thead>
+      <tbody>
+        ${compares.map(({r,c}) => `<tr ${regime===r.id?'class="base-row"':''}>
+          <td><strong>${r.title}</strong></td>
+          <td>${c ? fmt(c.revenus)+' €' : '—'}</td>
+          <td class="neg">${c ? fmt(c.impot)+' €' : '—'}</td>
+          <td class="${c&&c.cashflowNetNet>=0?'pos':'neg'}">${c ? fmtE(Math.round(c.cashflowNetNet)) : '—'}</td>
+          <td>${c ? fmtD(c.rendNetNet)+'%' : '—'}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>
+  <div class="alert a-warn" style="margin-top:14px">⚠️ Estimations indicatives. Consultez un expert-comptable pour votre situation réelle.</div>`;
+}
+
+// ─────────────────────────────────────────────
+// DÉCISION IMMEUBLE
+// ─────────────────────────────────────────────
+function renderDecisionImmeuble(p) {
+  if (!p.data) p.data = defaultData('immeuble');
+  const pid = p.id;
+  const prix = p.prixAchat || 0;
+  const lots = p.data.lots || [];
+  const loc = p.data.loc || {};
+  const loyerMensuel = lots.reduce((s,l) => s+(parseFloat(l.loyer)||0), 0) || loc.loyer || 0;
+  const tauxOcc = (loc.tauxOcc||92)/100;
+  const chargesAn = (loc.taxeFonciere||0) + (loc.pno||0) + (loc.copro||0)*12;
+  const loyerAn = loyerMensuel * 12 * tauxOcc;
+  const revenus = loyerAn - chargesAn;
+  const mens = calcMens(p.empruntMontant||0, p.empruntTaux||3.8, p.empruntDuree||20, p.empruntAssurance||0.12);
+  const cf = loyerMensuel - mens;
+
+  const prixCibleFn = (rendCible) => revenus > 0 ? revenus / (rendCible/100) : 0;
+  const rendBrut = prix > 0 ? loyerMensuel*12/prix*100 : 0;
+  const rendNet = prix > 0 ? revenus/prix*100 : 0;
+
+  const scen = (type) => {
+    const lb = loc.loyerBas || Math.round(loyerMensuel*.85);
+    const lh = loc.loyerHaut || Math.round(loyerMensuel*1.1);
+    const ob = (loc.occBas||80)/100, oh = (loc.occHaut||98)/100;
+    const l = type==='pessimiste' ? lb : type==='optimiste' ? lh : loyerMensuel;
+    const o = type==='pessimiste' ? ob : type==='optimiste' ? oh : tauxOcc;
+    const cfS = l*o - mens;
+    const rS = prix > 0 ? l*12*o/prix*100 : 0;
+    return {cf: cfS, rend: rS, loyer: l, occ: Math.round(o*100)};
+  };
+
+  document.getElementById('mainContent').innerHTML = `
+  <div class="pf-box">
+    <div class="fs-title" style="border:none;padding:0;margin-bottom:14px">🎯 Prix d'achat cible</div>
+    <div class="fg fg2">
+      <div class="fgrp"><label>Rendement net cible (%)</label><input type="number" step="0.5" id="rendCible" value="6" oninput="recalcPrixCibleImm('${pid}')"></div>
+    </div>
+    <div id="prixCibleResult" style="margin-top:14px"></div>
+  </div>
+  <div class="sec-title">📊 Analyse de sensibilité</div>
+  <div class="fs" style="padding:0;overflow:hidden">
+    <table class="sens-tbl">
+      <thead><tr><th>Prix d'achat</th><th>Rend. brut</th><th>Rend. net</th><th>CF mensuel</th><th>Négociation</th></tr></thead>
+      <tbody>
+        ${[-25,-15,-10,-5,0,5,10,15].map(delta => {
+          const p2 = prix * (1+delta/100);
+          const rb = p2>0 ? loyerMensuel*12/p2*100 : 0;
+          const rn = p2>0 ? revenus/p2*100 : 0;
+          const cfD = loyerMensuel*tauxOcc - mens;
+          const nego = -delta;
+          return `<tr ${delta===0?'class="base-row"':''}>
+            <td><strong>${fmt(p2)} €</strong></td>
+            <td>${fmtD(rb)}%</td><td>${fmtD(rn)}%</td>
+            <td class="${cfD>=0?'pos':'neg'}">${fmtE(Math.round(cfD))}</td>
+            <td>${nego>0?`<span class="chip ch-g">−${nego}%</span>`:nego<0?`<span class="chip ch-r">+${Math.abs(nego)}%</span>`:'<span class="chip ch-b">Actuel</span>'}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>
+  <div class="sec-title" style="margin-top:18px">🎲 Scénarios</div>
+  <div class="sc-grid">
+    ${['pessimiste','realiste','optimiste'].map(type => {
+      const sc = scen(type);
+      const icons = {pessimiste:'📉',realiste:'📊',optimiste:'📈'};
+      return `<div class="sc-card sc-${type}">
+        <div class="sc-title">${icons[type]} ${type.charAt(0).toUpperCase()+type.slice(1)}</div>
+        <div class="text-xs muted mb-8">${fmt(sc.loyer)}€ · ${sc.occ}%</div>
+        <div class="sc-cf ${sc.cf>=0?'pos':'neg'}">${fmtE(Math.round(sc.cf))}</div>
+        <div class="text-xs muted">Rend. brut ${fmtD(sc.rend)}%</div>
+      </div>`;
+    }).join('')}
+  </div>
+  <div class="sec-title">📍 Break-even</div>
+  <div class="mg mg3">
+    <div class="mc"><div class="mc-lbl">Loyer min. autofinancement</div><div class="mc-val">${fmt(mens/tauxOcc)} €/mois</div></div>
+    <div class="mc"><div class="mc-lbl">Taux occ. minimum</div><div class="mc-val">${loyerMensuel>0?fmtD(mens/loyerMensuel*100):0} %</div></div>
+    <div class="mc ${cf>0?'mc-hl':''}"><div class="mc-lbl">Cash-flow estimé</div><div class="mc-val ${cf>=0?'pos':'neg'}">${fmtE(Math.round(cf))}</div></div>
+  </div>`;
+
+  recalcPrixCibleImm(pid);
+}
+
+function recalcPrixCibleImm(pid) {
+  const p = S.portfolios.find(x=>x.id===pid); if(!p) return;
+  const rendCible = parseFloat(document.getElementById('rendCible')?.value) || 6;
+  const lots = p.data?.lots || [];
+  const loc = p.data?.loc || {};
+  const loyerMensuel = lots.reduce((s,l) => s+(parseFloat(l.loyer)||0), 0) || loc.loyer || 0;
+  const tauxOcc = (loc.tauxOcc||92)/100;
+  const chargesAn = (loc.taxeFonciere||0) + (loc.pno||0) + (loc.copro||0)*12;
+  const revenus = loyerMensuel * 12 * tauxOcc - chargesAn;
+  const prixCible = revenus > 0 ? Math.round(revenus / (rendCible/100)) : 0;
+  const prixActuel = p.prixAchat || 0;
+  const diff = prixCible - prixActuel;
+  const el = document.getElementById('prixCibleResult'); if(!el) return;
+  if (loyerMensuel === 0) { el.innerHTML = '<div class="muted text-sm">Renseignez les loyers dans Lots ou Location.</div>'; return; }
+  el.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+    <div>
+      <div class="text-xs muted mb-8">Prix cible pour ${rendCible}% rendement net</div>
+      <div class="price-big">${fmt(prixCible)} €</div>
+      ${prixActuel>0?`<div class="mt-8 text-sm" style="color:${diff<0?'var(--success)':'var(--danger)'}">
+        ${diff<0?'✓ Prix actuel inférieur de '+fmt(Math.abs(diff))+'€ — objectif atteint':'⚠ Négocier '+fmt(Math.abs(diff))+'€ pour atteindre l\'objectif'}
+      </div>`:''}
+    </div>
+    <div>
+      ${kv('Loyers bruts / an', fmt(loyerMensuel*12*tauxOcc)+' €')}
+      ${kv('Charges / an', '− '+fmt(chargesAn)+' €')}
+      ${kv('Revenus nets', fmt(revenus)+' €', true)}
+    </div>
+  </div>`;
+}
+
+// ─────────────────────────────────────────────
+// PROJECTIONS IMMEUBLE
+// ─────────────────────────────────────────────
+function renderProjectionsImmeuble(p) {
+  if (!p.data) p.data = defaultData('immeuble');
+  const pid = p.id;
+  const lots = p.data.lots || [];
+  const loc = p.data.loc || {};
+  const sc = S.selectedScenario || 'realiste';
+  const loyerBase = lots.reduce((s,l) => s+(parseFloat(l.loyer)||0), 0) || loc.loyer || 0;
+  const loyerBas = loc.loyerBas || Math.round(loyerBase*.85);
+  const loyerHaut = loc.loyerHaut || Math.round(loyerBase*1.1);
+  const occBas = (loc.occBas||80)/100, occHaut = (loc.occHaut||98)/100;
+  const loyerSc = sc==='pessimiste' ? loyerBas : sc==='optimiste' ? loyerHaut : loyerBase;
+  const occSc = sc==='pessimiste' ? occBas : sc==='optimiste' ? occHaut : (loc.tauxOcc||92)/100;
+  const revalo = (loc.revalo||1.5)/100;
+  const mens = calcMens(p.empruntMontant||0, p.empruntTaux||3.8, p.empruntDuree||20, p.empruntAssurance||0.12);
+  const chargesAn = (loc.taxeFonciere||0) + (loc.pno||0) + (loc.copro||0)*12;
+
+  const labels=[], cfs=[], loyersD=[], valeurs=[];
+  let loyer = loyerSc * 12 * occSc;
+  let valeur = p.prixAchat || 0;
+  for (let a=0; a<=25; a++) {
+    labels.push(new Date().getFullYear()+a);
+    loyersD.push(Math.round(loyer));
+    cfs.push(Math.round((loyer - chargesAn)/12 - mens));
+    valeurs.push(Math.round(valeur));
+    loyer *= (1+revalo); valeur *= 1.025;
+  }
+
+  document.getElementById('mainContent').innerHTML = `
+  <div class="flex items-c just-b mb-16">
+    <div class="fw6">Scénario :</div>
+    <div class="flex gap-8">
+      ${['pessimiste','realiste','optimiste'].map(t=>`<button class="tab-btn ${sc===t?'active':''}" onclick="S.selectedScenario='${t}';save();renderImmeuble(S.portfolios.find(x=>x.id==='${pid}'))">
+        ${t.charAt(0).toUpperCase()+t.slice(1)}</button>`).join('')}
+    </div>
+  </div>
+  <div class="cw"><div class="cw-title">Cash-flow mensuel projeté</div>
+    <div style="position:relative;height:200px"><canvas id="cCF" role="img">CF</canvas></div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div class="cw"><div class="cw-title">Loyers annuels</div>
+      <div style="position:relative;height:180px"><canvas id="cLoy" role="img">Loyers</canvas></div></div>
+    <div class="cw"><div class="cw-title">Valeur estimée (+2.5%/an)</div>
+      <div style="position:relative;height:180px"><canvas id="cVal" role="img">Valeur</canvas></div></div>
+  </div>
+  <div class="fs"><div class="fs-title">📋 Données annuelles</div>
+    <div class="tbl-scroll"><table class="proj-data">
+      <thead><tr><th>Année</th><th>CF /mois</th><th>Loyers /an</th><th>Valeur</th></tr></thead>
+      <tbody>${labels.map((yr,i)=>`<tr ${[5,10,15,20,25].includes(i)?'class="yr-hl"':''}>
+        <td><strong>${yr}</strong></td>
+        <td class="${cfs[i]>=0?'pos':'neg'}">${fmtE(cfs[i])}</td>
+        <td>${fmt(loyersD[i])} €</td><td>${fmt(valeurs[i])} €</td>
+      </tr>`).join('')}</tbody>
+    </table></div>
+  </div>`;
+
+  setTimeout(() => {
+    const dark = S.dark;
+    const gc = dark?'rgba(255,255,255,.06)':'rgba(0,0,0,.05)';
+    const tc = dark?'#6B6862':'#9B9890';
+    const opts = {responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:tc,maxTicksLimit:8,font:{size:10}},grid:{color:gc}},y:{ticks:{color:tc,callback:v=>fmt(v)+'€',font:{size:10}},grid:{color:gc}}}};
+    const cf=document.getElementById('cCF'), loy=document.getElementById('cLoy'), val=document.getElementById('cVal');
+    if(cf) new Chart(cf,{type:'bar',data:{labels,datasets:[{label:'CF',data:cfs,backgroundColor:cfs.map(v=>v>=0?'#3D6B4F55':'#C0392B55'),borderColor:cfs.map(v=>v>=0?'#3D6B4F':'#C0392B'),borderWidth:1.5}]},options:opts});
+    if(loy) new Chart(loy,{type:'line',data:{labels,datasets:[{data:loyersD,borderColor:'#C17B3E',backgroundColor:'#C17B3E22',tension:.4,fill:true,borderWidth:2,pointRadius:0}]},options:opts});
+    if(val) new Chart(val,{type:'line',data:{labels,datasets:[{data:valeurs,borderColor:dark?'#A0A0A0':'#1A1916',backgroundColor:dark?'#A0A0A022':'#1A191622',tension:.4,fill:true,borderWidth:2,pointRadius:0}]},options:opts});
+  }, 100);
+}
+
 
 // ═══════════════════════════════════════════
 // ARTISANS

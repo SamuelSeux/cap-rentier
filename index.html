@@ -1118,7 +1118,8 @@ function renderDashboard() {
           <span class="bc-status s-${b.statut}">${b.statut}</span>
         </div>
         <div class="bc-name">${b.nom}</div>
-        <div class="bc-addr">${b.adresse||b.ville||'—'} · ${b.surface||'—'} m²</div>
+        <div class="bc-addr">${b.adresse||pf?.ville||b.ville||'—'} · ${b.surface||'—'} m²</div>
+        ${(b.lienAnnonce||pf?.lienAnnonce) ? `<a href="${b.lienAnnonce||pf?.lienAnnonce}" target="_blank" rel="noopener" style="font-size:10px;color:var(--green);text-decoration:none">🔗 Voir l'annonce</a>` : ''}
         ${hasTravaux > 0 ? `<div class="bc-travaux">
           <div class="flex just-b" style="font-size:10px"><span>🔨 Travaux ${travDone}/${hasTravaux} validés</span><span style="font-weight:600">${fmt(c.travauxPC + c.travauxLots)} €</span></div>
           <div class="progress-bar"><div class="progress-fill" style="width:${hasTravaux>0?Math.round(travDone/hasTravaux*100):0}%;background:${travDone===hasTravaux?'var(--green)':'var(--gold)'}"></div></div>
@@ -1347,8 +1348,13 @@ function renderFoyer() {
 // ═══════════════════════════════════════════
 function renderSynthese(b, p) {
   const c = calcBien(b);
+  const lienBien = b.lienAnnonce || p.lienAnnonce || '';
   document.getElementById('mainContent').innerHTML = `
-  <div class="breadcrumb"><span onclick="showDash()">Dashboard</span><span>›</span><span>${p.name}</span><span>›</span><span>${b.nom}</span></div>
+  <div class="breadcrumb">
+    <span onclick="showDash()">Dashboard</span><span>›</span>
+    <span>${p.name}${p.ville?' — '+p.ville:''}</span><span>›</span><span>${b.nom}</span>
+    ${lienBien ? `<a href="${lienBien}" target="_blank" rel="noopener" style="margin-left:auto;display:flex;align-items:center;gap:4px;font-size:11px;color:var(--green);text-decoration:none;padding:3px 8px;border:1px solid var(--green);border-radius:var(--rsm)">🔗 Voir l'annonce</a>` : `<button class="text-xs muted" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--t3)" onclick="editLienAnnonce('${p.id}')">+ Ajouter lien annonce</button>`}
+  </div>
   <div style="margin-bottom:18px">${scoreRing(c.score, c.scoreLabel)}</div>
   ${c.alerts.map(a => `<div class="alert a-${a.type}">${a.msg}</div>`).join('')}
   <div class="rg rg4">
@@ -2302,20 +2308,21 @@ function analyserAnnonce() {
     { key: 'nom',          label: 'Nom / Titre',          type: 'text',   val: data.nom },
     { key: 'type',         label: 'Type de bien',          type: 'select', val: data.type,
       opts: ['appartement','maison','immeuble','local','terrain'] },
-    { key: 'surface',      label: 'Surface (m²)',          type: 'number', val: data.surface },
+    { key: 'surface',      label: 'Surface totale (m²)',   type: 'number', val: data.surface },
     { key: 'nbPieces',     label: 'Nombre de pièces',      type: 'number', val: data.nbPieces },
     { key: 'prix',         label: 'Prix d\'achat (€)',     type: 'number', val: data.prix },
     { key: 'adresse',      label: 'Adresse',               type: 'text',   val: data.adresse },
     { key: 'ville',        label: 'Ville',                 type: 'text',   val: data.ville },
     { key: 'cp',           label: 'Code postal',           type: 'text',   val: data.cp },
     { key: 'anneeConstr',  label: 'Année de construction', type: 'number', val: data.anneeConstr },
-    { key: 'charges',      label: 'Charges copro (€/mois)',type: 'number', val: data.charges },
+    { key: 'charges',      label: 'Charges / lot (€/mois)',type: 'number', val: data.charges },
     { key: 'taxeFonciere', label: 'Taxe foncière (€/an)',  type: 'number', val: data.taxeFonciere },
     { key: 'loyer',        label: 'Loyer actuel (€/mois)', type: 'number', val: data.loyer },
     { key: 'dpe',          label: 'DPE',                   type: 'select', val: data.dpe,
       opts: ['A','B','C','D','E','F','G','Non précisé'] },
     { key: 'etage',        label: 'Étage',                 type: 'text',   val: data.etage },
-    { key: 'notes',        label: 'Description extraite',  type: 'textarea', val: data.description },
+    { key: 'lienAnnonce',  label: 'Lien de l\'annonce (colle l\'URL LBC)', type: 'url', val: '' },
+    { key: 'notes',        label: 'Notes / Description',  type: 'textarea', val: data.description },
   ];
 
   let html = '';
@@ -2332,6 +2339,8 @@ function analyserAnnonce() {
         f.opts.map(o => `<option ${o===f.val?'selected':''}>${o}</option>`).join('') + '</select>';
     } else if (f.type === 'textarea') {
       input = `<textarea id="af-${f.key}" rows="3" style="resize:none;font-size:11px;border-color:${hasVal?'var(--green)':'var(--border)'}">${f.val||''}</textarea>`;
+    } else if (f.type === 'url') {
+      input = `<input id="af-${f.key}" type="url" value="${f.val||''}" placeholder="https://www.leboncoin.fr/..." style="border-color:var(--border)">`;
     } else {
       input = `<input id="af-${f.key}" type="${f.type}" value="${f.val||''}" style="border-color:${hasVal?'var(--green)':'var(--gold)'}">`;
     }
@@ -2353,6 +2362,29 @@ function analyserAnnonce() {
     missingEl.style.display = 'none';
   }
 
+  // Show lots preview if found
+  const lotsPreviewEl = document.getElementById('annonceLotsPreview');
+  if (data.lots && data.lots.length > 0) {
+    const totalLoyer = data.lots.reduce((s,l) => s + l.loyer, 0);
+    lotsPreviewEl.innerHTML = `
+      <div class="divider"></div>
+      <div class="fs-title" style="margin-bottom:10px">🏠 ${data.lots.length} lot(s) détecté(s) — Loyer total : ${fmt(totalLoyer)} €/mois</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:12px">
+        ${data.lots.map((lot,i) => `
+          <div class="mc" style="padding:10px 12px">
+            <div class="fw6 text-sm">${lot.nom}</div>
+            <div class="text-xs muted">${lot.surface}m² · <span class="chip ${lot.statut==='loue'?'ch-g':'ch-y'}">${lot.statut}</span></div>
+            <div class="mc-val" style="font-size:16px;color:var(--green)">${fmt(lot.loyer)} €/m</div>
+            <div class="text-xs muted">+ ${lot.charges}€ charges</div>
+          </div>`).join('')}
+      </div>
+      <div class="alert a-ok" style="font-size:11px">✅ Ces lots seront créés automatiquement dans l'immeuble. Vous pourrez les modifier après import.</div>`;
+    lotsPreviewEl.style.display = 'block';
+  } else {
+    lotsPreviewEl.innerHTML = '<div class="alert a-info" style="font-size:11px">ℹ️ Aucun lot individuel détecté. Vous pourrez les ajouter manuellement après import.</div>';
+    lotsPreviewEl.style.display = 'block';
+  }
+
   document.getElementById('annonceResult').style.display = 'block';
   document.getElementById('annonceResult').scrollIntoView({ behavior: 'smooth' });
 }
@@ -2362,137 +2394,195 @@ function parseAnnonce(text) {
 
   // ── Prix ──
   let prix = null;
-  const prixPatterns = [
-    /(\d[\d\s]{2,8})\s*€/g,
-    /prix\s*[:\-]?\s*(\d[\d\s]+)/gi,
-    /(\d+[\s.]?\d+)\s*euros?/gi,
-  ];
-  for (const pat of prixPatterns) {
-    const matches = [...t.matchAll(pat)];
-    for (const m of matches) {
-      const n = parseInt(m[1].replace(/\s/g,'').replace('.',''));
-      if (n > 10000 && n < 50000000) { prix = n; break; }
-    }
-    if (prix) break;
+  const prixMatches = [...t.matchAll(/(\d[\d\s]{2,8})\s*€/g)];
+  for (const m of prixMatches) {
+    const n = parseInt(m[1].replace(/\s/g,''));
+    if (n > 10000 && n < 50000000) { prix = n; break; }
   }
 
-  // ── Surface ──
+  // ── Surface totale ──
   let surface = null;
-  const surfPatterns = [
-    /(\d+(?:[.,]\d+)?)\s*m[²2]/gi,
-    /surface\s*[:\-]?\s*(\d+)/gi,
-    /(\d+)\s*metres?\s*carres?/gi,
-  ];
-  for (const pat of surfPatterns) {
-    const m = pat.exec(t);
-    if (m) { const n = parseFloat(m[1].replace(',','.')); if (n > 5 && n < 5000) { surface = n; break; } }
-  }
-
-  // ── Nombre de pièces ──
-  let nbPieces = null;
-  const piecesPatterns = [
-    /\bT(\d)\b/i,
-    /(\d)\s*pièces?/i,
-    /(\d)\s*rooms?/i,
-    /F(\d)\b/i,
-  ];
-  for (const pat of piecesPatterns) {
-    const m = pat.exec(t);
-    if (m) { nbPieces = parseInt(m[1]); break; }
+  const surfMatches = [...t.matchAll(/(\d+(?:[.,]\d+)?)\s*m[²2]/gi)];
+  for (const m of surfMatches) {
+    const n = parseFloat(m[1].replace(',','.'));
+    if (n > 20 && n < 10000) { surface = n; break; }
   }
 
   // ── Type ──
   let type = 'appartement';
-  if (/immeuble\s*(de rapport|entier|complet)/i.test(t)) type = 'immeuble';
+  if (/immeuble\s*(de rapport|entier|complet|en mono)/i.test(t)) type = 'immeuble';
   else if (/\bmaison\b/i.test(t)) type = 'maison';
   else if (/local\s*(commercial|professionnel)/i.test(t)) type = 'local';
   else if (/terrain/i.test(t)) type = 'terrain';
-  else if (/appartement|appart\b|studio/i.test(t)) type = 'appartement';
+
+  // ── Nb pièces ──
+  let nbPieces = null;
+  const piecesM = t.match(/(\d+)\s*pièces?/i) || t.match(/\bT(\d)\b/i) || t.match(/F(\d)\b/i);
+  if (piecesM) nbPieces = parseInt(piecesM[1]);
 
   // ── Ville & CP ──
   let ville = '', cp = '';
-  const cpMatch = t.match(/\b(0[1-9]|[1-8]\d|9[0-5])\d{3}\b/);
-  if (cpMatch) {
-    cp = cpMatch[0];
-    // Try to find city near the CP
-    const ctx = t.slice(Math.max(0, cpMatch.index - 60), cpMatch.index + 60);
-    const cityMatch = ctx.match(/([A-ZÉÈÊËÀÂÎÏÔÙÛÜ][a-zéèêëàâîïôùûüç]+(?:[-\s][A-ZÉÈÊËÀÂÎÏÔÙÛÜÇA-Z][a-zéèêëàâîïôùûüç]*)*)\s*[\(,]?\s*(?:0[1-9]|[1-8]\d|9[0-5])\d{3}/);
-    if (cityMatch) ville = cityMatch[1].trim();
+  const cpM = t.match(/\b(0[1-9]|[1-8]\d|9[0-5])\d{3}\b/);
+  if (cpM) {
+    cp = cpM[0];
+    const ctx = t.slice(Math.max(0, cpM.index - 80), cpM.index + 80);
+    const cityM = ctx.match(/([A-ZÉÈÊËÀÂÎÏÔÙÛÜ][a-zéèêëàâîïôùûü\-]+(?:\s[A-ZÉÈÊËÀÂÎÏÔÙÛÜ][a-zéèêëàâîïôùûü\-]+)*)\s*[\(,]?\s*(?:0[1-9]|[1-8]\d|9[0-5])\d{3}/);
+    if (cityM) ville = cityM[1].trim();
+    if (!ville) {
+      const cityM2 = ctx.match(/(?:0[1-9]|[1-8]\d|9[0-5])\d{3}\s*[·•\-]?\s*([A-ZÉÈÊËÀÂÎÏÔÙÛÜ][a-zéèêëàâîïôùûü\-]+(?:\s[A-ZÉÈÊËÀÂÎÏÔÙÛÜ][a-zéèêëàâîïôùûü\-]+)*)/);
+      if (cityM2) ville = cityM2[1].trim();
+    }
   }
-
-  // Common cities without CP
+  // Also try "city CP" or "city (CP)" patterns
   if (!ville) {
-    const cities = ['Paris','Lyon','Marseille','Toulouse','Nice','Nantes','Strasbourg',
-      'Montpellier','Bordeaux','Lille','Rennes','Reims','Le Havre','Saint-Étienne',
-      'Toulon','Grenoble','Dijon','Angers','Nîmes','Villeurbanne'];
-    for (const c of cities) {
-      if (new RegExp('\\b' + c + '\\b', 'i').test(t)) { ville = c; break; }
+    const bigCities = ['Paris','Lyon','Marseille','Toulouse','Nice','Nantes','Strasbourg',
+      'Montpellier','Bordeaux','Lille','Rennes','Reims','Le Havre','Saint-Étienne','Toulon',
+      'Grenoble','Dijon','Angers','Nîmes','Clermont-Ferrand','Tours','Limoges','Amiens'];
+    for (const c of bigCities) {
+      if (new RegExp('\\b' + c.replace('-','[\\-\\s]') + '\\b','i').test(t)) { ville=c; break; }
     }
   }
 
   // ── Adresse ──
   let adresse = '';
-  const adrMatch = t.match(/\b(\d+[,\s]+(?:rue|avenue|boulevard|impasse|allée|place|chemin|voie|route)[^\n,]{3,40})/i);
-  if (adrMatch) adresse = adrMatch[1].trim().slice(0, 60);
+  const adrM = t.match(/(\d+[,\s]+(?:rue|avenue|boulevard|av\.|bd\.?|impasse|allée|place|chemin|voie|route|cours)[^\n,\.]{3,50})/i);
+  if (adrM) adresse = adrM[1].trim().slice(0,60);
 
-  // ── Année construction ──
+  // ── Année ──
   let anneeConstr = null;
-  const anneeMatch = t.match(/(?:construit?|construction|(?:ann[ée]e?\s*(?:de\s*)?construction)[^\d]*)\s*[:\-]?\s*(1[89]\d{2}|20[012]\d)/i)
-    || t.match(/\b(19[2-9]\d|20[012]\d)\b/);
-  if (anneeMatch) {
-    const yr = parseInt(anneeMatch[1]);
-    if (yr >= 1850 && yr <= new Date().getFullYear()) anneeConstr = yr;
-  }
+  const anneeM = t.match(/(?:construit|construction|bâti)\D{0,20}(1[89]\d{2}|20[012]\d)/i)
+    || t.match(/\b(19[3-9]\d|20[012]\d)\b/);
+  if (anneeM) { const yr=parseInt(anneeM[1]); if(yr>=1850&&yr<=2030) anneeConstr=yr; }
 
   // ── Charges ──
   let charges = null;
-  const chargesMatch = t.match(/charges?\s*[:\-]?\s*(\d+(?:[.,]\d+)?)\s*€?\s*(?:\/\s*mois|mensuel)/i)
+  const chargesM = t.match(/(\d+)\s*€?\s*de\s*charges?\s*(?:par\s*logement|\/\s*logement)/i)
+    || t.match(/charges?\s*[:\-]?\s*(\d+(?:[.,]\d+)?)\s*€?\s*(?:\/\s*mois|mensuel)/i)
     || t.match(/(\d+)\s*€\s*(?:de\s*)?charges?\s*(?:\/\s*mois)?/i);
-  if (chargesMatch) charges = parseFloat(chargesMatch[1].replace(',','.'));
+  if (chargesM) charges = parseFloat(chargesM[1].replace(',','.'));
 
   // ── Taxe foncière ──
   let taxeFonciere = null;
-  const tfMatch = t.match(/taxe\s*fonci[eè]re\s*[:\-]?\s*(\d+(?:[.,]\d+)?)\s*€/i)
-    || t.match(/(\d+)\s*€\s*(?:de\s*)?taxe\s*fonci[eè]re/i);
-  if (tfMatch) taxeFonciere = parseFloat(tfMatch[1].replace(',','.'));
+  const tfM = t.match(/taxe\s*fonci[eè]re\s*[:\-]?\s*(\d+(?:\s\d+)*)\s*€/i)
+    || t.match(/(\d+(?:\s\d+)*)\s*€\s*(?:de\s*)?taxe\s*fonci[eè]re/i);
+  if (tfM) taxeFonciere = parseInt(tfM[1].replace(/\s/g,''));
 
-  // ── Loyer actuel ──
-  let loyer = null;
-  const loyerMatch = t.match(/loyer\s*[:\-]?\s*(\d+(?:[.,]\d+)?)\s*€/i)
-    || t.match(/actuellement\s*lou[eé]\s*[:\-]?\s*(\d+)/i);
-  if (loyerMatch) loyer = parseFloat(loyerMatch[1].replace(',','.'));
+  // ── Loyer global ──
+  let loyerGlobal = null;
+  const loyerRevM = t.match(/revenus?\s*locatifs?\s*(?:actuels?)?\s*[:\-]?\s*(?:environ\s*)?(\d+[\s\d]*)\s*€/i)
+    || t.match(/loyers?\s*(?:annuels?)?\s*[:\-]?\s*(\d+[\s\d]*)\s*€/i);
+  if (loyerRevM) {
+    const n = parseInt(loyerRevM[1].replace(/\s/g,''));
+    // If annual, convert to monthly
+    if (n > 5000) loyerGlobal = Math.round(n / 12);
+    else loyerGlobal = n;
+  }
 
   // ── DPE ──
   let dpe = 'Non précisé';
-  const dpeMatch = t.match(/\bDPE\s*[:\-]?\s*([A-G])\b/i)
-    || t.match(/classe\s*[:\-]?\s*([A-G])\b/i)
-    || t.match(/\b([A-G])\s*\(\d+\s*kwh\b/i);
-  if (dpeMatch) dpe = dpeMatch[1].toUpperCase();
+  const dpeM = t.match(/(?:classe\s*[éeE]nergie|DPE|consommation)[^\w]*([A-G])\b/i)
+    || t.match(/\bDPE\s*[:\-]?\s*([A-G])\b/i);
+  if (dpeM) dpe = dpeM[1].toUpperCase();
 
-  // ── Étage ──
-  let etage = '';
-  const etageMatch = t.match(/(\d+(?:er|ème|e)?)\s*(?:étage|floor)/i)
-    || t.match(/(?:étage|floor)\s*[:\-]?\s*(\d+)/i)
-    || t.match(/\bRDC\b|\brez[- ]de[- ]chauss[eé]e\b/i);
-  if (etageMatch) etage = etageMatch[1] || 'RDC';
+  // ── Chauffage ──
+  let chauffage = '';
+  if (/individuel/i.test(t)) chauffage = 'Individuel';
+  else if (/collectif/i.test(t)) chauffage = 'Collectif';
+  const modeChauffM = t.match(/(?:mode\s*de\s*)?chauffage\s*[:\-]?\s*([\w\s]+?)(?:\n|,|\.|$)/i);
+  if (modeChauffM) chauffage += (chauffage ? ' — ' : '') + modeChauffM[1].trim().slice(0,20);
 
-  // ── Nom / titre ──
-  let nom = '';
-  // Try to build a smart name
+  // ── Ascenseur ──
+  const hasAscenseur = /ascenseur\s*[:\-]?\s*oui/i.test(t);
+
+  // ══════════════════════════════════════════════════════
+  // PARSING DES LOTS — le coeur de la nouveauté
+  // ══════════════════════════════════════════════════════
+  const lots = parseLots(t, charges || 0);
+
+  // ── Nom auto ──
   const parts = [];
-  if (type === 'appartement' && nbPieces) parts.push(`T${nbPieces}`);
-  else if (type !== 'appartement') parts.push(type.charAt(0).toUpperCase() + type.slice(1));
+  if (type === 'immeuble') parts.push('Immeuble');
+  else if (type === 'maison') parts.push('Maison');
+  else if (nbPieces) parts.push(`T${nbPieces}`);
   if (surface) parts.push(`${surface}m²`);
   if (ville) parts.push(ville);
-  nom = parts.join(' ') || 'Bien importé';
+  const nom = parts.join(' ') || 'Bien importé';
 
-  // ── Description ──
-  // Extract a clean summary (first 300 chars of meaningful text)
-  const description = t.replace(/\s+/g,' ').slice(0, 300);
+  const description = t.slice(0, 400).replace(/<[^>]+>/g,'');
 
   return { nom, type, surface, nbPieces, prix, adresse, ville, cp,
-           anneeConstr, charges, taxeFonciere, loyer, dpe, etage, description };
+           anneeConstr, charges, taxeFonciere, loyer: loyerGlobal,
+           dpe, chauffage, hasAscenseur, lots, description };
 }
+
+function parseLots(text, chargesParLot = 0) {
+  const lots = [];
+  const t = text;
+
+  // Strategy: find patterns like "T2 de 33m² loué 430€/mois" or "studio de 25m2 loué pour 360€"
+  // Also: "local commercial d'environ 77m² loué pour 680€/mois"
+  // And: "studio de 25m² et 40m2 au sol actuellement loué 370€ et 380€"
+
+  // Pattern 1: explicit lot descriptions with type + surface + loyer
+  // Matches: "T2 de 33m² loué 430€", "studio 25m2 loué 362€", "local commercial 77m² loué 680€"
+  const lotPattern = /(?:(local\s*commercial|studio|T\d|appartement\s*T?\d*|F\d)(?:\s*(?:de|d'environ|d'|anciennement\s+loué\s+pour|loué\s+pour|au\s+sol))?\s*(?:d'environ\s+)?(\d+(?:[.,]\d+)?)\s*m[²2](?:\s*(?:carrez?|carré|au\s+sol))?\s*(?:et\s+\d+m[²2][^\d]*)?(?:actuellement\s+)?(?:anciennement\s+)?lou[eé](?:\s+pour)?\s*(?:un\s+montant\s+de\s+)?(\d+)\s*€(?:\s*(?:\/|par)\s*mois)?)/gi;
+
+  let m;
+  while ((m = lotPattern.exec(t)) !== null) {
+    const typeRaw = m[1].toLowerCase().trim();
+    const surfVal = parseFloat(m[2].replace(',','.'));
+    const loyerVal = parseInt(m[3]);
+
+    let lotType = 'T2';
+    if (/studio/i.test(typeRaw)) lotType = 'Studio';
+    else if (/local\s*commercial/i.test(typeRaw)) lotType = 'Commercial';
+    else if (/T(\d)/i.test(typeRaw)) lotType = 'T' + typeRaw.match(/(\d)/)[1];
+    else if (/F(\d)/i.test(typeRaw)) lotType = 'T' + typeRaw.match(/(\d)/)[1];
+
+    if (surfVal > 5 && surfVal < 500 && loyerVal > 50 && loyerVal < 10000) {
+      lots.push({
+        type: lotType,
+        surface: surfVal,
+        loyer: loyerVal,
+        charges: chargesParLot,
+        statut: /anciennement/i.test(m[0]) ? 'vacant' : 'loue',
+        nom: `${lotType} ${surfVal}m²`
+      });
+    }
+  }
+
+  // Pattern 2: "deux studios de 25m² actuellement loués 370€ et 380€/mois"
+  // Handle "deux X de Ym² loués A€ et B€"
+  const doublePattern = /deux\s+(studios?|T\d|appartements?)\s+(?:de\s+)?(\d+(?:[.,]\d+)?)\s*m[²2][^€]{0,50}?(\d{3,4})\s*€\s*et\s*(\d{3,4})\s*€/gi;
+  while ((m = doublePattern.exec(t)) !== null) {
+    const typeRaw = m[1].toLowerCase();
+    const surfVal = parseFloat(m[2].replace(',','.'));
+    const loyer1 = parseInt(m[3]);
+    const loyer2 = parseInt(m[4]);
+    let lotType = /studio/i.test(typeRaw) ? 'Studio' : 'T2';
+    if (surfVal > 5 && surfVal < 500) {
+      [loyer1, loyer2].forEach(l => {
+        if (l > 50 && l < 10000 && !lots.some(lot => lot.loyer === l && lot.surface === surfVal)) {
+          lots.push({ type: lotType, surface: surfVal, loyer: l, charges: chargesParLot,
+                      statut: 'loue', nom: `${lotType} ${surfVal}m²` });
+        }
+      });
+    }
+  }
+
+  // Deduplicate lots that are too similar (same type+surface+loyer)
+  const unique = [];
+  for (const lot of lots) {
+    const isDup = unique.some(u => u.type===lot.type && u.surface===lot.surface && u.loyer===lot.loyer);
+    if (!isDup) unique.push(lot);
+  }
+
+  // Auto-name with index
+  unique.forEach((lot, i) => { lot.nom = `${lot.type} ${lot.surface}m² — Lot ${i+1}`; });
+
+  return unique;
+}
+
 
 function getFieldVal(key, type = 'text') {
   const el = document.getElementById('af-' + key);
@@ -2541,21 +2631,40 @@ function importerAnnonce() {
     };
     S.portfolios.push(pf);
     S.openPids[pf.id] = true;
+    pf.lienAnnonce = getFieldVal('lienAnnonce');
     S.activePid = pf.id;
     S.activeBid = null;
     S.activeTab = 'acquisition';
 
-    // If single lot (not immeuble), create one lot automatically
-    if (type !== 'immeuble') {
+    // Create lots from parsed data
+    if (!pf.data) pf.data = defaultData(type);
+    if (!pf.data.lots) pf.data.lots = [];
+
+    if (_annonceData.lots && _annonceData.lots.length > 0) {
+      // Use detected lots
+      _annonceData.lots.forEach((lotDef, i) => {
+        const lot = {
+          id: uid(), nom: lotDef.nom || `Lot ${i+1}`,
+          type: lotDef.type || 'T2',
+          surface: lotDef.surface || 0,
+          loyer: lotDef.loyer || 0,
+          charges: lotDef.charges || 0,
+          statut: lotDef.statut || 'vacant',
+          locataire: '', dateEntree: '', depotGarantie: 0,
+          loyerApresTravaux: 0, notes: '', travaux: [], _open: false
+        };
+        pf.data.lots.push(lot);
+        pf.biens.push(lot);
+      });
+    } else if (type !== 'immeuble') {
+      // Single lot
       const lot = {
         id: uid(), nom: nom, type: `T${getFieldVal('nbPieces','number') || 2}`,
         surface, loyer: loyer || 0, charges: charges || 0,
         statut: loyer > 0 ? 'loue' : 'vacant',
         locataire: '', dateEntree: '', depotGarantie: 0,
-        loyerApresTravaux: 0, notes, travaux: [], _open: false,
-        anneeConstr, dpe, etage
+        loyerApresTravaux: 0, notes, travaux: [], _open: false
       };
-      if (!pf.data.lots) pf.data.lots = [];
       pf.data.lots.push(lot);
       pf.biens.push(lot);
     }
@@ -2600,6 +2709,13 @@ function importerAnnonce() {
       setTimeout(() => banner.remove(), 4000);
     }
   }, 300);
+}
+
+function editLienAnnonce(pfId) {
+  const lien = prompt('Colle le lien de l\'annonce :');
+  if (lien === null) return;
+  const pf = S.portfolios.find(p => p.id === pfId);
+  if (pf) { pf.lienAnnonce = lien.trim(); save(); render(); }
 }
 
 // ═══════════════════════════════════════════
@@ -2676,6 +2792,7 @@ function mobileNavThen(fn) {
       <div class="divider"></div>
       <div class="fs-title" style="margin-bottom:12px">✅ Données extraites — vérifiez et corrigez si besoin</div>
       <div class="fg fg2" id="annonceFields"></div>
+      <div id="annonceLotsPreview" style="display:none;margin-top:12px"></div>
       <div id="annonceMissing" class="alert a-warn" style="margin-top:12px;display:none"></div>
       <div class="mo-acts" style="margin-top:16px">
         <div class="fgrp" style="flex:1">

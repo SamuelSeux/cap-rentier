@@ -2775,67 +2775,84 @@ function parseAnnonce(text) {
 function parseLots(text, chargesParLot) {
   chargesParLot = chargesParLot || 0;
   const lots = [];
-  const t = text;
 
-  // Strategy: find any mention of a surface + loyer in proximity
-  // Pattern: optional type, surface m², optional text, loué/loue, loyer €
-  // Very permissive to catch all formats
+  // Surface-anchored approach: find each Xm² mention, look before for type, after for loyer
+  const surfPat = /(\d+(?:[.,]\d+)?)\s*m[²2]/gi;
+  let sm;
 
-  // Pattern A: "TYPE de Xm² [anciennement] loué [pour] [un montant de] Y€"
-  const pA = /(?:(local\s+commercial|commerce|studio|T\d|F\d|appartement(?:\s+T?\d)?|maison)\s+)?(?:d[e']\s*environ\s+)?(\d+(?:[.,]\d+)?)\s*m[²2][^€\d]{0,80}?(?:anciennement\s+)?lou[eé]\s*(?:pour\s+)?(?:un\s+montant\s+de\s+)?(\d{2,4})\s*€/gi;
+  while ((sm = surfPat.exec(text)) !== null) {
+    const surf = parseFloat(sm[1].replace(',', '.'));
+    if (surf < 10 || surf > 2000) continue;
 
-  let m;
-  while ((m = pA.exec(t)) !== null) {
-    const typeRaw = (m[1] || '').toLowerCase().trim();
-    const surf = parseFloat((m[2] || '0').replace(',', '.'));
-    const loyer = parseInt(m[3]);
-    if (surf < 5 || surf > 1000 || loyer < 50 || loyer > 15000) continue;
+    const before = text.slice(Math.max(0, sm.index - 120), sm.index);
+    const after = text.slice(sm.index + sm[0].length, Math.min(text.length, sm.index + sm[0].length + 250));
 
+    // Skip non-rentable spaces
+    if (/grenier|cave|à\s*aménager|parking|stationnement/i.test(before.slice(-60) + after.slice(0, 60))) continue;
+
+    // Find type in context before surface
+    const typeM = /(?:local\s*commercial|commerce|bureau(?:\/salle)?(?:\s*de\s*r[eé]union)?|studio|T(\d)|F(\d)|appartement(?:\s+T?\d)?|maison)\s*(?:[^.m]{0,40})?$/.exec(before);
+    const typeRaw = typeM ? typeM[0].trim().toLowerCase() : '';
+
+    // Find loyer after surface — handles €, euros, and annual mentions
+    const loyerM = /(?:lou[eé]|loyer|revenu[^.€]*?|génère[^.€]*?|montant[^.€]*?)\s*(?:pour\s+)?(?:un\s+montant\s+(?:annuel\s+)?de\s+)?(\d[\d\s\u00A0]{1,10})\s*(?:€|euros?)/.exec(after);
+    if (!loyerM) continue;
+
+    const loyerRaw = parseInt(loyerM[1].replace(/[\s\u00A0]/g, ''));
+    if (loyerRaw < 50 || loyerRaw > 500000) continue;
+
+    // Detect annual loyer (> 1500 OR explicit "an/annuel" nearby)
+    const ctx = after.slice(0, loyerM.index + loyerM[0].length + 40);
+    const isAnnual = loyerRaw > 1500 || /annuel|par\s*an|\/\s*an|euros?\s*par\s*an/i.test(ctx);
+    const loyerMensuel = isAnnual ? Math.round(loyerRaw / 12) : loyerRaw;
+    if (loyerMensuel < 50 || loyerMensuel > 15000) continue;
+
+    // Determine lot type
     let lotType = 'T2';
-    if (/studio/i.test(typeRaw)) lotType = 'Studio';
-    else if (/local|commerce/i.test(typeRaw)) lotType = 'Commercial';
-    else if (/T(\d)/i.test(typeRaw)) lotType = 'T' + typeRaw.match(/(\d)/)[1];
-    else if (/F(\d)/i.test(typeRaw)) lotType = 'T' + typeRaw.match(/(\d)/)[1];
-    else if (surf <= 30) lotType = 'Studio';
+    if (/local\s*commercial|commerce/i.test(typeRaw)) lotType = 'Commercial';
+    else if (/bureau|salle\s*de\s*r[eé]union/i.test(typeRaw)) lotType = 'Commercial';
+    else if (/studio/i.test(typeRaw)) lotType = 'Studio';
+    else if (/T(\d)/i.test(typeRaw)) { const n = typeRaw.match(/T(\d)/i); lotType = 'T' + n[1]; }
+    else if (/F(\d)/i.test(typeRaw)) { const n = typeRaw.match(/F(\d)/i); lotType = 'T' + n[1]; }
+    else if (surf <= 25) lotType = 'Studio';
     else if (surf <= 45) lotType = 'T1';
     else if (surf <= 65) lotType = 'T2';
-    else if (surf <= 85) lotType = 'T3';
+    else if (surf <= 90) lotType = 'T3';
     else lotType = 'T4';
 
-    const isAncien = /anciennement/i.test(m[0]);
+    const isAncient = /anciennement/i.test(before.slice(-80) + after.slice(0, 60));
+
     lots.push({
-      type: lotType, surface: surf, loyer, charges: chargesParLot,
-      statut: isAncien ? 'vacant' : 'loue',
+      type: lotType, surface: surf, loyer: loyerMensuel, charges: chargesParLot,
+      statut: isAncient ? 'vacant' : 'loue',
       nom: lotType + ' ' + surf + 'm\u00B2'
     });
   }
 
-  // Pattern B: "deux/trois/X studios/T2 de Ym² loués A€ et B€"
+  // Also run pattern B for "deux/trois X de Ym² loués A€ et B€"
   const pB = /(?:deux|2)\s+(studios?|T\d|appartements?)\s+(?:de\s+)?(\d+(?:[.,]\d+)?)\s*m[²2][^€]{0,80}?(\d{3,4})\s*€\s*et\s*(\d{3,4})\s*€/gi;
-  while ((m = pB.exec(t)) !== null) {
-    const typeRaw = (m[1] || '').toLowerCase();
-    const surf = parseFloat((m[2] || '0').replace(',', '.'));
-    const l1 = parseInt(m[3]), l2 = parseInt(m[4]);
-    let lotType = /studio/i.test(typeRaw) ? 'Studio' : 'T2';
+  let mb;
+  while ((mb = pB.exec(text)) !== null) {
+    const typeRaw = mb[1].toLowerCase();
+    const surf = parseFloat(mb[2].replace(',', '.'));
+    const l1 = parseInt(mb[3]), l2 = parseInt(mb[4]);
+    const lt = /studio/i.test(typeRaw) ? 'Studio' : 'T2';
     if (surf > 5 && surf < 500) {
-      [l1, l2].forEach(function(l) {
-        if (l > 50 && l < 10000 && !lots.some(function(x){ return x.loyer===l && x.surface===surf; })) {
-          lots.push({ type: lotType, surface: surf, loyer: l, charges: chargesParLot,
-                      statut: 'loue', nom: lotType + ' ' + surf + 'm\u00B2' });
-        }
+      [l1, l2].forEach(l => {
+        if (l > 50 && l < 10000 && !lots.some(x => x.loyer === l && x.surface === surf))
+          lots.push({ type: lt, surface: surf, loyer: l, charges: chargesParLot, statut: 'loue', nom: lt + ' ' + surf + 'm\u00B2' });
       });
     }
   }
 
   // Deduplicate
   const unique = [];
-  lots.forEach(function(lot) {
-    if (!unique.some(function(u){ return u.type===lot.type && u.surface===lot.surface && u.loyer===lot.loyer; }))
+  lots.forEach(lot => {
+    if (!unique.some(u => u.type === lot.type && u.surface === lot.surface && u.loyer === lot.loyer))
       unique.push(lot);
   });
 
-  // Name with index
-  unique.forEach(function(lot, i) { lot.nom = lot.type + ' ' + lot.surface + 'm\u00B2 \u2014 Lot ' + (i+1); });
+  unique.forEach((lot, i) => { lot.nom = lot.type + ' ' + lot.surface + 'm\u00B2 \u2014 Lot ' + (i + 1); });
   return unique;
 }
 

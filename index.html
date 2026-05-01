@@ -906,7 +906,16 @@ function renderSidebar() {
     </div>`;
     if (open) {
       html += `<div class="pg-items">`;
-      if (p.biens.length === 0) html += `<div class="text-xs muted" style="padding:4px 8px">Aucun bien — <span style="cursor:pointer;color:var(--green)" onclick="openAddBien('${p.id}')">+ Ajouter</span></div>`;
+      if (p.biens.length === 0) {
+        const lotCount = p.data && p.data.lots ? p.data.lots.length : 0;
+        if (lotCount > 0) {
+          // Immeuble with lots - show as single clickable item
+          const totalLoyer = p.data.lots.reduce(function(s,l){ return s+(parseFloat(l.loyer)||0); }, 0);
+          html += '<div class="b-item ' + (S.activePid===p.id&&!S.activeBid?'active':'') + '" onclick="closeSidebar();selImmeuble(''+p.id+'')">🏢 ' + lotCount + ' lot(s) — ' + fmt(totalLoyer) + ' €/m</div>';
+        } else {
+          html += '<div class="text-xs muted" style="padding:4px 8px">Aucun lot — <span style="cursor:pointer;color:var(--green)" onclick="openAddBien(''+p.id+'')">+ Ajouter</span></div>';
+        }
+      }
       p.biens.forEach(b => {
         const c = calcBien(b);
         const cf = c ? c.cashflowMensuel : 0;
@@ -1017,10 +1026,20 @@ function render() {
   if (S.activeTab === 'foyer') { renderFoyer(); return; }
   if (S.activeTab === 'artisans') { renderArtisans(); return; }
   if (S.activeTab === 'compare') { renderCompare(); return; }
-  if (!S.activeBid) { renderDashboard(); return; }
+  // If portfolio selected but no specific bien -> show immeuble overview
+  if (!S.activeBid) {
+    if (S.activePid) {
+      const pSel = S.portfolios.find(p => p.id === S.activePid);
+      if (pSel) { renderImmeuble(pSel); return; }
+    }
+    renderDashboard(); return;
+  }
   const p = S.portfolios.find(p => p.id === S.activePid);
   const b = p?.biens.find(b => b.id === S.activeBid);
-  if (!b) { renderDashboard(); return; }
+  if (!b) {
+    if (p) { renderImmeuble(p); return; }
+    renderDashboard(); return;
+  }
 
   document.getElementById('tbTitle').textContent = b.nom;
   const tabs = ['synthese','acquisition','travaux','location','fiscal','decision','projections'];
@@ -2158,6 +2177,180 @@ function renderCompare() {
 
 
 // ═══════════════════════════════════════════
+// RENDER IMMEUBLE (portfolio-level view)
+// ═══════════════════════════════════════════
+function renderImmeuble(p) {
+  document.getElementById('tbTitle').textContent = p.name;
+  document.getElementById('tbActions').innerHTML =
+    '<button class="tab-btn ' + (S.activeTab==='synthese'?'active':'') + '" onclick="S.activeTab=\'synthese\';save();renderImmeuble(S.portfolios.find(x=>x.id===S.activePid))">Synthèse</button>' +
+    '<button class="tab-btn ' + (S.activeTab==='lots'?'active':'') + '" onclick="S.activeTab=\'lots\';save();renderImmeuble(S.portfolios.find(x=>x.id===S.activePid))">Lots</button>' +
+    '<button class="tab-btn ' + (S.activeTab==='acquisition'?'active':'') + '" onclick="S.activeTab=\'acquisition\';save();renderImmeuble(S.portfolios.find(x=>x.id===S.activePid))">Acquisition</button>' +
+    '<button class="ib-btn" onclick="deletePf(\''+p.id+'\')" title="Supprimer" style="padding:5px 8px;font-size:13px;border:1px solid var(--border);border-radius:var(--rsm)">🗑</button>';
+
+  const lots = (p.data && p.data.lots) ? p.data.lots : [];
+  const prix = p.prixAchat || 0;
+  const totalLoyer = lots.reduce(function(s,l){ return s+(parseFloat(l.loyer)||0); }, 0);
+  const totalSurf = lots.reduce(function(s,l){ return s+(parseFloat(l.surface)||0); }, 0);
+  const lotsLoues = lots.filter(function(l){ return l.statut==='loue'; }).length;
+  const loyerMoyen = lots.length > 0 ? Math.round(totalLoyer / lots.length) : 0;
+
+  if (S.activeTab === 'lots') {
+    // Show lot management
+    renderLotsImmeuble(p);
+    return;
+  }
+
+  if (S.activeTab === 'acquisition') {
+    renderAcquisitionImmeuble(p);
+    return;
+  }
+
+  // Synthese
+  const lien = p.lienAnnonce || '';
+  document.getElementById('mainContent').innerHTML =
+    '<div class="breadcrumb">' +
+      '<span onclick="showDash()">Dashboard</span><span>›</span>' +
+      '<span>' + p.name + (p.ville?' — '+p.ville:'') + '</span>' +
+      (lien ? '<a href="'+lien+'" target="_blank" rel="noopener" style="margin-left:auto;display:flex;align-items:center;gap:4px;font-size:11px;color:var(--green);text-decoration:none;padding:3px 8px;border:1px solid var(--green);border-radius:var(--rsm)">🔗 Voir l\'annonce</a>' :
+              '<button class="text-xs muted" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--t3)" onclick="editLienAnnonce(\''+p.id+'\')">+ Ajouter lien annonce</button>') +
+    '</div>' +
+    '<div class="mg mg4" style="margin-bottom:18px">' +
+      '<div class="mc"><div class="mc-lbl">Prix d\'achat</div><div class="mc-val">' + fmt(prix) + ' €</div></div>' +
+      '<div class="mc mc-hl"><div class="mc-lbl">Loyer total / mois</div><div class="mc-val pos">' + fmt(totalLoyer) + ' €</div><div class="mc-sub">' + lots.length + ' lot(s) · ' + lotsLoues + ' loué(s)</div></div>' +
+      '<div class="mc"><div class="mc-lbl">Surface totale</div><div class="mc-val">' + fmt(totalSurf) + ' m²</div><div class="mc-sub">' + (prix && totalSurf ? fmt(Math.round(prix/totalSurf)) : '—') + ' €/m²</div></div>' +
+      '<div class="mc mc-hl"><div class="mc-lbl">Rendement brut</div><div class="mc-val">' + (prix > 0 ? (totalLoyer*12/prix*100).toFixed(2) : '—') + ' %</div></div>' +
+    '</div>' +
+    '<div class="sec-title">Lots de l\'immeuble</div>' +
+    '<div class="bg-grid">' +
+    lots.map(function(lot, i) {
+      const loyerM2 = lot.surface > 0 ? (lot.loyer / lot.surface).toFixed(1) : '—';
+      const prixLot = totalSurf > 0 ? Math.round(prix * lot.surface / totalSurf) : 0;
+      const rendLot = prixLot > 0 ? (lot.loyer*12/prixLot*100).toFixed(2) : '—';
+      // Compare loyer/m² to average
+      const avgM2 = totalSurf > 0 && totalLoyer > 0 ? totalLoyer / totalSurf : 0;
+      const lotM2 = lot.surface > 0 ? lot.loyer / lot.surface : 0;
+      const ecart = avgM2 > 0 ? ((lotM2 - avgM2) / avgM2 * 100) : 0;
+      const indic = lot.loyer === 0 ? '—' : ecart > 10 ? '🟢 Au-dessus' : ecart >= -10 ? '🟡 Dans la moyenne' : '🔴 En dessous';
+      return '<div class="bc" onclick="openLotEditor(\''+p.id+'\','+i+')">' +
+        '<div class="bc-head"><div class="bc-icon">🚪</div><span class="chip ' + (lot.statut==='loue'?'ch-g':lot.statut==='travaux'?'ch-b':'ch-r') + '">' + lot.statut + '</span></div>' +
+        '<div class="bc-name">' + (lot.nom||'Lot '+(i+1)) + '</div>' +
+        '<div class="bc-addr">' + (lot.type||'—') + ' · ' + (lot.surface||'—') + ' m²</div>' +
+        '<div class="bc-metrics">' +
+          '<div><div class="bcm-lbl">Loyer HC</div><div class="bcm-val g">' + fmt(lot.loyer) + ' €/m</div></div>' +
+          '<div><div class="bcm-lbl">Loyer/m²</div><div class="bcm-val">' + loyerM2 + ' €</div></div>' +
+          '<div><div class="bcm-lbl">Indicateur</div><div class="bcm-val" style="font-size:11px">' + indic + '</div></div>' +
+        '</div>' +
+      '</div>';
+    }).join('') +
+    '<div class="bc" style="border-style:dashed;cursor:pointer;display:flex;align-items:center;justify-content:center;min-height:120px" onclick="openLotEditor(\''+p.id+'\',-1)">' +
+      '<span style="color:var(--green);font-size:13px">+ Ajouter un lot</span>' +
+    '</div>' +
+    '</div>';
+}
+
+function openLotEditor(pfId, lotIdx) {
+  // Navigate to lots tab
+  S.activePid = pfId; S.activeBid = null; S.activeTab = 'lots';
+  if (lotIdx >= 0) S._editLotIdx = lotIdx;
+  save(); renderImmeuble(S.portfolios.find(p => p.id === pfId));
+}
+
+function renderLotsImmeuble(p) {
+  const lots = (p.data && p.data.lots) ? p.data.lots : [];
+  const selIdx = S._editLotIdx !== undefined ? S._editLotIdx : lots.length;
+  const isNew = selIdx >= lots.length;
+
+  document.getElementById('mainContent').innerHTML =
+    '<div class="lots-layout">' +
+    '<div class="lot-form-area">' +
+    '<div class="fs"><div class="fs-title">' + (isNew ? '+ Nouveau lot' : '✏️ Modifier — ' + (lots[selIdx]?.nom||'Lot')) + '</div>' +
+    lotFormHtml(isNew ? null : lots[selIdx]) +
+    '<div class="mo-acts" style="margin-top:14px;justify-content:flex-start;gap:8px">' +
+    (isNew ? '' : '<button class="btn-sec" onclick="removeLotImmeuble(\''+p.id+'\','+selIdx+')">Supprimer</button>') +
+    '<button class="btn-pri" onclick="saveLotImmeuble(\''+p.id+'\','+selIdx+','+isNew+')">Enregistrer</button>' +
+    '<button class="btn-add" onclick="S._editLotIdx=undefined;save();renderImmeuble(S.portfolios.find(x=>x.id===\''+p.id+'\'))">+ Nouveau lot</button>' +
+    '</div></div></div>' +
+    '<div>' +
+    '<div class="fw6 text-sm mb-8">Lots (' + lots.length + ')</div>' +
+    '<div class="lot-mini-list">' +
+    lots.map(function(lot, i) {
+      return '<div class="lot-mini ' + (i===selIdx&&!isNew?'selected':'') + '" onclick="S._editLotIdx='+i+';save();renderImmeuble(S.portfolios.find(x=>x.id===\''+p.id+'\'))">' +
+        '<div class="flex just-b items-c"><div class="lot-mini-name">' + (lot.nom||'Lot '+(i+1)) + '</div><span class="chip ' + (lot.statut==='loue'?'ch-g':lot.statut==='vacant'?'ch-r':'ch-b') + '">' + lot.statut + '</span></div>' +
+        '<div class="lot-mini-sub">' + (lot.surface||'—') + ' m² · ' + (lot.type||'—') + '</div>' +
+        '<div class="lot-mini-loyer">' + fmt(lot.loyer||0) + ' €/mois HC</div>' +
+      '</div>';
+    }).join('') +
+    (lots.length === 0 ? '<div class="text-sm muted">Aucun lot.</div>' : '') +
+    '</div></div></div>';
+}
+
+function lotFormHtml(lot) {
+  const v = function(k) { return lot ? (lot[k] !== undefined ? lot[k] : '') : ''; };
+  const types = ['Studio','T1','T2','T3','T4','T5','T6','Commercial','Autre'];
+  return '<div class="fg fg2" id="lotFormFields">' +
+    '<div class="fgrp"><label>Nom du lot</label><input id="lf-nom" type="text" value="'+v('nom')+'" placeholder="Appt 1er gauche"></div>' +
+    '<div class="fgrp"><label>Type</label><select id="lf-type">'+types.map(function(t){ return '<option '+(v('type')===t?'selected':'')+'>'+t+'</option>'; }).join('')+'</select></div>' +
+    '<div class="fgrp"><label>Surface (m²)</label><input id="lf-surface" type="number" value="'+v('surface')+'" placeholder="55"></div>' +
+    '<div class="fgrp"><label>Statut</label><select id="lf-statut"><option value="loue" '+(v('statut')==='loue'?'selected':'')+'>Loué</option><option value="vacant" '+(v('statut')==='vacant'?'selected':'')+'>Vacant</option><option value="travaux" '+(v('statut')==='travaux'?'selected':'')+'>En travaux</option></select></div>' +
+    '<div class="fgrp"><label>Loyer HC (€/mois)</label><input id="lf-loyer" type="number" value="'+v('loyer')+'" placeholder="650"></div>' +
+    '<div class="fgrp"><label>Charges (€/mois)</label><input id="lf-charges" type="number" value="'+v('charges')+'" placeholder="15"></div>' +
+    '<div class="fgrp"><label>Locataire</label><input id="lf-locataire" type="text" value="'+v('locataire')+'" placeholder="Nom"></div>' +
+    '<div class="fgrp"><label>Dépôt de garantie (€)</label><input id="lf-depot" type="number" value="'+v('depotGarantie')+'" placeholder="0"></div>' +
+    '<div class="fgrp"><label>Loyer après travaux (€/mois)</label><input id="lf-loyerTravaux" type="number" value="'+v('loyerApresTravaux')+'" placeholder="0"></div>' +
+    '<div class="fgrp fg-full"><label>Notes</label><textarea id="lf-notes" rows="2" style="resize:none">'+v('notes')+'</textarea></div>' +
+  '</div>';
+}
+
+function saveLotImmeuble(pfId, idx, isNew) {
+  const p = S.portfolios.find(function(x){ return x.id === pfId; });
+  if (!p) return;
+  if (!p.data) p.data = defaultData('immeuble');
+  if (!p.data.lots) p.data.lots = [];
+  const g = function(id) { const el = document.getElementById(id); return el ? el.value : ''; };
+  const lotData = {
+    nom: g('lf-nom'), type: g('lf-type'),
+    surface: parseFloat(g('lf-surface'))||0,
+    loyer: parseFloat(g('lf-loyer'))||0,
+    charges: parseFloat(g('lf-charges'))||0,
+    statut: g('lf-statut'), locataire: g('lf-locataire'),
+    depotGarantie: parseFloat(g('lf-depot'))||0,
+    loyerApresTravaux: parseFloat(g('lf-loyerTravaux'))||0,
+    notes: g('lf-notes'), travaux: [], _open: false
+  };
+  if (isNew) { lotData.id = uid(); p.data.lots.push(lotData); S._editLotIdx = p.data.lots.length - 1; }
+  else { p.data.lots[idx] = Object.assign({}, p.data.lots[idx], lotData); }
+  save(); renderImmeuble(p);
+}
+
+function removeLotImmeuble(pfId, idx) {
+  if (!confirm('Supprimer ce lot ?')) return;
+  const p = S.portfolios.find(function(x){ return x.id === pfId; });
+  if (!p || !p.data || !p.data.lots) return;
+  p.data.lots.splice(idx, 1);
+  S._editLotIdx = undefined;
+  save(); renderImmeuble(p);
+}
+
+function renderAcquisitionImmeuble(p) {
+  const prix = p.prixAchat || 0;
+  const fraisN = prix * ((p.fraisNotaire || 7.5) / 100);
+  document.getElementById('mainContent').innerHTML =
+    '<div class="fs"><div class="fs-title">🏠 Prix d\'acquisition</div>' +
+    '<div class="fg fg2">' +
+    '<div class="fgrp"><label>Prix d\'achat global (€)</label><input type="number" value="'+prix+'" oninput="S.portfolios.find(function(x){return x.id===\''+p.id+'\';}).prixAchat=parseFloat(this.value)||0;save()"></div>' +
+    '<div class="fgrp"><label>Frais notaire (%) <span class="calc-val">'+fmt(fraisN)+' €</span></label><input type="number" step="0.1" value="'+(p.fraisNotaire||7.5)+'" oninput="S.portfolios.find(function(x){return x.id===\''+p.id+'\';}).fraisNotaire=parseFloat(this.value)||7.5;save()"></div>' +
+    '</div></div>' +
+    '<div class="fs"><div class="fs-title">🏦 Emprunt</div>' +
+    '<div class="fg fg2">' +
+    '<div class="fgrp"><label>Montant emprunté (€)</label><input type="number" value="'+(p.empruntMontant||0)+'" oninput="S.portfolios.find(function(x){return x.id===\''+p.id+'\';}).empruntMontant=parseFloat(this.value)||0;save()"></div>' +
+    '<div class="fgrp"><label>Taux nominal (%)</label><input type="number" step="0.01" value="'+(p.empruntTaux||3.8)+'" oninput="S.portfolios.find(function(x){return x.id===\''+p.id+'\';}).empruntTaux=parseFloat(this.value)||3.8;save()"></div>' +
+    '<div class="fgrp"><label>Durée (ans)</label><input type="number" value="'+(p.empruntDuree||20)+'" oninput="S.portfolios.find(function(x){return x.id===\''+p.id+'\';}).empruntDuree=parseFloat(this.value)||20;save()"></div>' +
+    '<div class="fgrp"><label>Assurance (%/an)</label><input type="number" step="0.01" value="'+(p.empruntAssurance||0.12)+'" oninput="S.portfolios.find(function(x){return x.id===\''+p.id+'\';}).empruntAssurance=parseFloat(this.value)||0.12;save()"></div>' +
+    '</div></div>';
+}
+
+
+// ═══════════════════════════════════════════
 // ARTISANS
 // ═══════════════════════════════════════════
 const SPECIALITES = ['Maçonnerie','Charpente','Toiture','Façade','Isolation','Menuiseries','Plomberie','Chauffage','Climatisation','Électricité','Carrelage','Sol','Peinture','Cuisine','Salle de bain','VRD','Ascenseur','Architecte','Géomètre','Bureau d\'études','Multi-corps d\'état','Autre'];
@@ -2643,10 +2836,11 @@ function importerAnnonce() {
     if (!pf.data.lots) pf.data.lots = [];
 
     if (_annonceData.lots && _annonceData.lots.length > 0) {
-      // Use detected lots
+      // Use detected lots - store in data.lots only, NOT in biens
+      // pf.biens stays empty (immeuble has no sub-biens, only lots)
       _annonceData.lots.forEach((lotDef, i) => {
-        const lot = {
-          id: uid(), nom: lotDef.nom || `Lot ${i+1}`,
+        pf.data.lots.push({
+          id: uid(), nom: lotDef.nom || ('Lot ' + (i+1)),
           type: lotDef.type || 'T2',
           surface: lotDef.surface || 0,
           loyer: lotDef.loyer || 0,
@@ -2654,21 +2848,18 @@ function importerAnnonce() {
           statut: lotDef.statut || 'vacant',
           locataire: '', dateEntree: '', depotGarantie: 0,
           loyerApresTravaux: 0, notes: '', travaux: [], _open: false
-        };
-        pf.data.lots.push(lot);
-        pf.biens.push(lot);
+        });
       });
     } else if (type !== 'immeuble') {
-      // Single lot
-      const lot = {
-        id: uid(), nom: nom, type: `T${getFieldVal('nbPieces','number') || 2}`,
+      // Single lot for appartement/maison
+      pf.data.lots.push({
+        id: uid(), nom: nom,
+        type: 'T' + (getFieldVal('nbPieces','number') || 2),
         surface, loyer: loyer || 0, charges: charges || 0,
         statut: loyer > 0 ? 'loue' : 'vacant',
         locataire: '', dateEntree: '', depotGarantie: 0,
         loyerApresTravaux: 0, notes, travaux: [], _open: false
-      };
-      pf.data.lots.push(lot);
-      pf.biens.push(lot);
+      });
     }
 
   } else {
@@ -2679,29 +2870,25 @@ function importerAnnonce() {
     if (!pf.data.lots) pf.data.lots = [];
     if (_annonceData.lots && _annonceData.lots.length > 0) {
       _annonceData.lots.forEach((lotDef, i) => {
-        const lot = {
-          id: uid(), nom: lotDef.nom || `Lot ${i+1}`,
+        pf.data.lots.push({
+          id: uid(), nom: lotDef.nom || ('Lot ' + (i+1)),
           type: lotDef.type || 'T2', surface: lotDef.surface || 0,
           loyer: lotDef.loyer || 0, charges: lotDef.charges || 0,
           statut: lotDef.statut || 'vacant',
           locataire: '', dateEntree: '', depotGarantie: 0,
           loyerApresTravaux: 0, notes: '', travaux: [], _open: false
-        };
-        pf.data.lots.push(lot); pf.biens.push(lot);
+        });
       });
       S.activePid = pf.id; S.activeBid = null; S.activeTab = 'synthese';
     } else {
-      const lot = {
+      pf.data.lots.push({
         id: uid(), nom, type, surface,
         loyer: loyer || 0, charges: charges || 0,
         statut: loyer > 0 ? 'loue' : 'vacant',
         locataire: '', dateEntree: '', depotGarantie: 0,
-        loyerApresTravaux: 0, notes, travaux: [], _open: false,
-        data: defaultData(type)
-      };
-      if (lot.data) { lot.data.acq.prixAchat = prix; lot.data.loc.loyer = loyer || 0; }
-      pf.biens.push(lot);
-      S.activePid = pf.id; S.activeBid = lot.id; S.activeTab = 'synthese';
+        loyerApresTravaux: 0, notes, travaux: [], _open: false
+      });
+      S.activePid = pf.id; S.activeBid = null; S.activeTab = 'synthese';
     }
   }
 
@@ -2735,6 +2922,11 @@ function editLienAnnonce(pfId) {
   if (lien === null) return;
   const pf = S.portfolios.find(p => p.id === pfId);
   if (pf) { pf.lienAnnonce = lien.trim(); save(); render(); }
+}
+
+function selImmeuble(pid) {
+  S.activePid = pid; S.activeBid = null; S.activeTab = 'synthese';
+  save(); render();
 }
 
 // ═══════════════════════════════════════════

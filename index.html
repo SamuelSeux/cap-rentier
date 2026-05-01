@@ -2638,7 +2638,15 @@ function analyserAnnonce() {
     lotsPreviewEl.innerHTML = lotsHtml;
     lotsPreviewEl.style.display = 'block';
   } else {
-    lotsPreviewEl.innerHTML = '<div class="alert a-info" style="font-size:11px">Aucun lot individuel détecté. Vous pourrez les ajouter manuellement après import.</div>';
+    const textLen = document.getElementById('annonceText').value.length;
+    const hasDesc = /immeuble|appartement|studio|T\d|local|loué|revenu/i.test(document.getElementById('annonceText').value);
+    let msg = '';
+    if (!hasDesc || textLen < 500) {
+      msg = '<div class="alert a-warn" style="font-size:11px">⚠️ Le texte semble incomplet. Sur LBC, cliquez sur <strong>"Voir plus"</strong> dans la description pour l'afficher entièrement, puis refaites Ctrl+A → Ctrl+C → Coller ici.</div>';
+    } else {
+      msg = '<div class="alert a-info" style="font-size:11px">ℹ️ Aucun lot détecté automatiquement. Vous pourrez les ajouter manuellement dans l'onglet Lots après import.</div>';
+    }
+    lotsPreviewEl.innerHTML = msg;
     lotsPreviewEl.style.display = 'block';
   }
 
@@ -2795,7 +2803,7 @@ function parseLots(text, chargesParLot) {
     const typeRaw = typeM ? typeM[0].trim().toLowerCase() : '';
 
     // Find loyer after surface — handles €, euros, and annual mentions
-    const loyerM = /(?:lou[eé]|loyer|revenu[^.€]*?|génère[^.€]*?|montant[^.€]*?)\s*(?:pour\s+)?(?:un\s+montant\s+(?:annuel\s+)?de\s+)?(\d[\d\s\u00A0]{1,10})\s*(?:€|euros?)/.exec(after);
+    const loyerM = /(?:lou[eé]|loyer|revenu|g[eé]n[eè]re|montant)[^.€\d]{0,60}(\d[\d\s\u00A0]{1,10})\s*(?:€|euros?)/.exec(after);
     if (!loyerM) continue;
 
     const loyerRaw = parseInt(loyerM[1].replace(/[\s\u00A0]/g, ''));
@@ -3059,7 +3067,8 @@ function mobileNavThen(fn) {
   <div class="mo-box" style="width:680px;max-height:90vh;overflow-y:auto">
     <div class="mo-title">📋 Importer une annonce</div>
     <div class="alert a-info" style="font-size:12px">
-      <strong>Comment faire :</strong> Ouvre l'annonce sur Le Bon Coin → sélectionne tout le texte (Ctrl+A) → copie (Ctrl+C) → colle ci-dessous → clique Analyser.
+      <strong>Comment faire :</strong> Ouvre l'annonce → clique <strong>"Voir plus"</strong> sur la description → Ctrl+A → Ctrl+C → colle ci-dessous → Analyser.<br>
+      <span style="opacity:.8">⚠️ Si "Voir plus" n'est pas cliqué, les appartements ne seront pas dans le texte.</span>
     </div>
     <div class="fgrp" style="margin-bottom:14px">
       <label>Texte de l'annonce (colle tout le contenu)</label>

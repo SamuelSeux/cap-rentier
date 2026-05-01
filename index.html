@@ -518,6 +518,8 @@ body.dark .artisan-card.selected{background:#1A2E22}
 // ═══════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════
+let _annonceData = {};
+
 let S = {
   portfolios: [], artisans: [], dark: false,
   activePid: null, activeBid: null, activeTab: 'dashboard',
@@ -766,6 +768,7 @@ function calcTMI(revenu, parts) {
 }
 
 function calcBien(bien, overrides = {}) {
+  if (!bien || !bien.data) return null;
   const d = bien.data;
   const acq = d.acq, emp = d.emp;
   const loc = {...d.loc, ...overrides};
@@ -906,7 +909,7 @@ function renderSidebar() {
       if (p.biens.length === 0) html += `<div class="text-xs muted" style="padding:4px 8px">Aucun bien — <span style="cursor:pointer;color:var(--green)" onclick="openAddBien('${p.id}')">+ Ajouter</span></div>`;
       p.biens.forEach(b => {
         const c = calcBien(b);
-        const cf = c.cashflowMensuel;
+        const cf = c ? c.cashflowMensuel : 0;
         const active = S.activeBid === b.id;
         let bdg = '', bdgCls = '';
         if (c.prixAchat > 0) {
@@ -1075,7 +1078,7 @@ function renderDashboard() {
   document.getElementById('tbTitle').textContent = 'Tableau de bord';
   document.getElementById('tbActions').innerHTML = '';
   const allBiens = S.portfolios.flatMap(p => p.biens);
-  const calcs = allBiens.map(b => ({b, c: calcBien(b)})).filter(x => x.c.prixAchat > 0);
+  const calcs = allBiens.map(b => ({b, c: calcBien(b)})).filter(x => x.c && x.c.prixAchat > 0);
 
   if (allBiens.length === 0) {
     document.getElementById('mainContent').innerHTML = `<div class="empty"><div class="empty-icon">🏘</div><div class="empty-title">Bienvenue sur Cap Rentier</div><div class="empty-sub">Créez un portefeuille et ajoutez vos premiers biens<br>pour voir apparaître votre tableau de bord.</div></div>`;
@@ -1101,7 +1104,7 @@ function renderDashboard() {
     ${allBiens.map(b => {
       const pid = S.portfolios.find(p => p.biens && p.biens.includes(b))?.id;
       const pf = S.portfolios.find(p => p.id === pid);
-      const c = calcBien(b);
+      const c = calcBien(b) || {score:0,scoreLabel:'—',cashflowMensuel:0,rendBrut:0,rendNet:0,travauxPC:0,travauxLots:0,alerts:[]};
       const hasTravaux = (b.data.travauxPC||[]).length + (b.data.lots ? b.data.lots.flatMap(l=>l.travaux||[]).length : 0);
       const travDone = (b.data.travauxPC||[]).filter(t=>t.valide).length + (b.data.lots ? b.data.lots.flatMap(l=>l.travaux||[]).filter(t=>t.valide).length : 0);
       return `<div class="bc" onclick="selBien('${pid}','${b.id}')">
@@ -2278,8 +2281,6 @@ render();
 // IMPORT ANNONCE
 // ═══════════════════════════════════════════
 
-// Extracted data stored here during analysis
-let _annonceData = {};
 
 function openImportAnnonce() {
   closeSidebar();
@@ -2340,8 +2341,10 @@ function analyserAnnonce() {
 
     let input = '';
     if (f.type === 'select') {
-      input = `<select id="af-${f.key}" style="border-color:${hasVal?'var(--green)':'var(--gold)'}">` +
-        f.opts.map(o => `<option ${o===f.val?'selected':''}>${o}</option>`).join('') + '</select>';
+      const borderCol = hasVal ? 'var(--green)' : 'var(--gold)';
+      let opts = '';
+      f.opts.forEach(function(o) { opts += '<option ' + (o===f.val?'selected':'') + '>' + o + '</option>'; });
+      input = '<select id="af-' + f.key + '" style="border-color:' + borderCol + '">' + opts + '</select>';
     } else if (f.type === 'textarea') {
       input = `<textarea id="af-${f.key}" rows="3" style="resize:none;font-size:11px;border-color:${hasVal?'var(--green)':'var(--border)'}">${f.val||''}</textarea>`;
     } else if (f.type === 'url') {
@@ -2351,10 +2354,10 @@ function analyserAnnonce() {
     }
 
     const fullWidth = ['adresse','nom','notes'].includes(f.key) ? 'grid-column:1/-1' : '';
-    html += `<div class="fgrp" style="${fullWidth}">
-      <label>${indicator} ${f.label}</label>
-      ${input}
-    </div>`;
+    html += '<div class="fgrp" style="' + fullWidth + '">' +
+      '<label>' + indicator + ' ' + f.label + '</label>' +
+      input +
+      '</div>';
   });
 
   document.getElementById('annonceFields').innerHTML = html;
@@ -2370,23 +2373,25 @@ function analyserAnnonce() {
   // Show lots preview if found
   const lotsPreviewEl = document.getElementById('annonceLotsPreview');
   if (data.lots && data.lots.length > 0) {
-    const totalLoyer = data.lots.reduce((s,l) => s + l.loyer, 0);
-    lotsPreviewEl.innerHTML = `
-      <div class="divider"></div>
-      <div class="fs-title" style="margin-bottom:10px">🏠 ${data.lots.length} lot(s) détecté(s) — Loyer total : ${fmt(totalLoyer)} €/mois</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:12px">
-        ${data.lots.map((lot,i) => `
-          <div class="mc" style="padding:10px 12px">
-            <div class="fw6 text-sm">${lot.nom}</div>
-            <div class="text-xs muted">${lot.surface}m² · <span class="chip ${lot.statut==='loue'?'ch-g':'ch-y'}">${lot.statut}</span></div>
-            <div class="mc-val" style="font-size:16px;color:var(--green)">${fmt(lot.loyer)} €/m</div>
-            <div class="text-xs muted">+ ${lot.charges}€ charges</div>
-          </div>`).join('')}
-      </div>
-      <div class="alert a-ok" style="font-size:11px">✅ Ces lots seront créés automatiquement dans l'immeuble. Vous pourrez les modifier après import.</div>`;
+    const totalLoyer = data.lots.reduce(function(s,l){ return s + l.loyer; }, 0);
+    let lotsHtml = '<div class="divider"></div>';
+    lotsHtml += '<div class="fs-title" style="margin-bottom:10px">🏠 ' + data.lots.length + ' lot(s) détecté(s) — Loyer total : ' + fmt(totalLoyer) + ' €/mois</div>';
+    lotsHtml += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:12px">';
+    data.lots.forEach(function(lot, i) {
+      const chipCls = lot.statut === 'loue' ? 'ch-g' : 'ch-y';
+      lotsHtml += '<div class="mc" style="padding:10px 12px">';
+      lotsHtml += '<div class="fw6 text-sm">' + lot.nom + '</div>';
+      lotsHtml += '<div class="text-xs muted">' + lot.surface + 'm² · <span class="chip ' + chipCls + '">' + lot.statut + '</span></div>';
+      lotsHtml += '<div class="mc-val" style="font-size:16px;color:var(--green)">' + fmt(lot.loyer) + ' €/m</div>';
+      lotsHtml += '<div class="text-xs muted">+ ' + lot.charges + '€ charges</div>';
+      lotsHtml += '</div>';
+    });
+    lotsHtml += '</div>';
+    lotsHtml += '<div class="alert a-ok" style="font-size:11px">Ces lots seront créés automatiquement. Vous pourrez les modifier après import.</div>';
+    lotsPreviewEl.innerHTML = lotsHtml;
     lotsPreviewEl.style.display = 'block';
   } else {
-    lotsPreviewEl.innerHTML = '<div class="alert a-info" style="font-size:11px">ℹ️ Aucun lot individuel détecté. Vous pourrez les ajouter manuellement après import.</div>';
+    lotsPreviewEl.innerHTML = '<div class="alert a-info" style="font-size:11px">Aucun lot individuel détecté. Vous pourrez les ajouter manuellement après import.</div>';
     lotsPreviewEl.style.display = 'block';
   }
 

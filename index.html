@@ -377,6 +377,21 @@ input:checked+.tg-sl:before{transform:translateX(16px)}
   .tab-btn{font-size:10px;padding:3px 8px}
 }
 
+
+/* ARTISANS */
+.artisan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:18px}
+.artisan-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:16px;cursor:pointer;transition:all .2s;position:relative}
+.artisan-card:hover{border-color:var(--green);box-shadow:var(--shmd)}
+.artisan-card.selected{border-color:var(--green);background:#F0F7F2}
+body.dark .artisan-card.selected{background:#1A2E22}
+.artisan-name{font-size:14px;font-weight:600;margin-bottom:4px}
+.artisan-spec{font-size:11px;color:var(--green);font-weight:600;margin-bottom:8px}
+.artisan-info{font-size:11px;color:var(--t2);line-height:1.6}
+.artisan-stats{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;gap:14px}
+.artisan-stat{font-size:10px;color:var(--t3);text-align:center}
+.artisan-stat strong{display:block;font-size:14px;font-weight:600;color:var(--text)}
+.artisan-badge{position:absolute;top:12px;right:12px;font-size:9px;padding:2px 7px;border-radius:10px;font-weight:600}
+
 </style>
 </head>
 <body>
@@ -472,7 +487,7 @@ input:checked+.tg-sl:before{transform:translateX(16px)}
 // STATE
 // ═══════════════════════════════════════════
 let S = {
-  portfolios: [], dark: false,
+  portfolios: [], artisans: [], dark: false,
   activePid: null, activeBid: null, activeTab: 'dashboard',
   openPids: {}, selectedLotIdx: 0, selectedScenario: 'realiste',
   foyer: { revenu: 60000, parts: 1, tmiManuel: null, ps: 17.2 }
@@ -878,6 +893,7 @@ function renderSidebar() {
   html = `<div style="margin:4px 6px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:4px">
     <div class="nav-item ${!S.activeBid && S.activeTab==='dashboard'?'active':''}" onclick="closeSidebar();showDash()">📊 Tableau de bord</div>
     <div class="nav-item ${S.activeTab==='foyer'?'active':''}" onclick="closeSidebar();showFoyer()">👤 Foyer fiscal</div>
+    <div class="nav-item ${S.activeTab==='artisans'?'active':''}" onclick="closeSidebar();showArtisans()">🔧 Artisans</div>
     <div class="nav-item ${S.activeTab==='compare'?'active':''}" onclick="closeSidebar();showCompare()">⚖️ Comparateur</div>
   </div>` + html;
   el.innerHTML = html;
@@ -895,6 +911,7 @@ function deletePf(id) {
 }
 function showDash() { S.activeBid = null; S.activePid = null; S.activeTab = 'dashboard'; save(); render(); }
 function showFoyer() { S.activeBid = null; S.activeTab = 'foyer'; save(); render(); }
+function showArtisans() { S.activeBid = null; S.activeTab = 'artisans'; save(); render(); }
 function showCompare() { S.activeBid = null; S.activeTab = 'compare'; save(); render(); }
 function selBien(pid, bid) { S.activePid = pid; S.activeBid = bid; S.activeTab = 'synthese'; save(); render(); }
 function setTab(t) { S.activeTab = t; save(); render(); }
@@ -952,6 +969,7 @@ function render() {
   document.getElementById('darkBtn').textContent = S.dark ? '☀️ Clair' : '🌙 Sombre';
   renderSidebar();
   if (S.activeTab === 'foyer') { renderFoyer(); return; }
+  if (S.activeTab === 'artisans') { renderArtisans(); return; }
   if (S.activeTab === 'compare') { renderCompare(); return; }
   if (!S.activeBid) { renderDashboard(); return; }
   const p = S.portfolios.find(p => p.id === S.activePid);
@@ -1456,19 +1474,27 @@ function renderTravaux(b) {
 
 function twTable(rows, prefix) {
   if (rows.length === 0) return `<div class="muted text-sm" style="padding:8px 0">Aucun poste de travaux.</div>`;
-  return `<div class="tw-hdr tw-cols-pc"><span>Poste</span><span>Catégorie</span><span>Estimé (€)</span><span>Réel (€)</span><span>Durée (sem.)</span><span>Statut</span><span></span><span></span></div>` +
-  rows.map((t, i) => `<div class="tw-row tw-cols-pc" id="tw-${prefix}-${i}" style="${t.valide?'opacity:.8;background:var(--s2)':''}">
-    <input type="text" value="${t.nom||''}" class="${t.valide?'tw-validated':''}" onchange="updateTw('${prefix}',${i},'nom',this.value,false)" placeholder="Description">
+  const artisanOpts = (S.artisans||[]).map(a => `<option value="${a.id}" >`+a.nom+' ('+a.specialite+')'+'</option>').join('');
+  return `<div class="tw-hdr tw-cols-pc"><span>Poste</span><span>Catégorie</span><span>Estimé (€)</span><span>Réel (€)</span><span>Durée</span><span>Artisan</span><span>Statut</span><span></span><span></span></div>` +
+  rows.map((t, i) => {
+    const artisan = t.artisanId ? (S.artisans||[]).find(a => a.id === t.artisanId) : null;
+    return `<div class="tw-row" style="display:grid;grid-template-columns:1fr 110px 85px 85px 65px 130px 95px 68px 28px;gap:6px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);${t.valide?'opacity:.8;background:var(--s2)':''}">
+    <input type="text" value="${t.nom||''}" class="${t.valide?'tw-validated':''}" onchange="updateTw('${prefix}',${i},'nom',this.value,false)" placeholder="Description poste">
     <select onchange="updateTw('${prefix}',${i},'cat',this.value,false)">${TW_CATS.map(c=>`<option ${t.cat===c?'selected':''}>${c}</option>`).join('')}</select>
     <input type="number" value="${t.estime||''}" onchange="updateTw('${prefix}',${i},'estime',this.value)" placeholder="0">
     <input type="number" value="${t.reel||''}" onchange="updateTw('${prefix}',${i},'reel',this.value)" placeholder="0">
     <input type="number" value="${t.duree||''}" onchange="updateTw('${prefix}',${i},'duree',this.value)" placeholder="0">
+    <select onchange="updateTw('${prefix}',${i},'artisanId',this.value,false)">
+      <option value="">— Artisan —</option>
+      ${artisanOpts}
+    </select>
     <select onchange="updateTw('${prefix}',${i},'statut',this.value,false)">${TW_STATUTS.map(s=>`<option ${t.statut===s?'selected':''}>${s}</option>`).join('')}</select>
     ${t.valide
       ? `<button class="btn-validate" style="background:var(--t3);font-size:10px" title="Cliquer pour dévalider" onclick="unvalidateTw('${prefix}',${i})">✓ OK</button>`
       : `<button class="btn-validate" onclick="validateTw('${prefix}',${i})">Valider</button>`}
     <button class="btn-rm" onclick="removeTw('${prefix}',${i})">×</button>
-  </div>`).join('');
+  </div>`;
+  }).join('');
 }
 
 function getTwArray(prefix) {
@@ -2079,6 +2105,118 @@ function renderCompare() {
 
 
 // ═══════════════════════════════════════════
+// ARTISANS
+// ═══════════════════════════════════════════
+const SPECIALITES = ['Maçonnerie','Charpente','Toiture','Façade','Isolation','Menuiseries','Plomberie','Chauffage','Climatisation','Électricité','Carrelage','Sol','Peinture','Cuisine','Salle de bain','VRD','Ascenseur','Architecte','Géomètre','Bureau d\'études','Multi-corps d\'état','Autre'];
+
+function getArtisanStats(artisanId) {
+  const allTravaux = S.portfolios.flatMap(p =>
+    p.biens.flatMap(b => [
+      ...(b.data.travauxPC || []),
+      ...(b.data.lots || []).flatMap(l => l.travaux || [])
+    ])
+  ).filter(t => t.artisanId === artisanId);
+  return {
+    total: allTravaux.length,
+    valide: allTravaux.filter(t => t.valide).length,
+    montant: allTravaux.reduce((s,t) => s + (parseFloat(t.reel || t.estime) || 0), 0),
+    libelles: allTravaux.map(t => t.nom).filter(Boolean)
+  };
+}
+
+function renderArtisans() {
+  document.getElementById('tbTitle').textContent = 'Annuaire artisans';
+  document.getElementById('tbActions').innerHTML = `<button class="btn-pri" onclick="openMoArtisan()">+ Nouvel artisan</button>`;
+
+  const artisans = S.artisans || [];
+
+  if (artisans.length === 0) {
+    document.getElementById('mainContent').innerHTML = `
+    <div class="empty">
+      <div class="empty-icon">🔧</div>
+      <div class="empty-title">Aucun artisan enregistré</div>
+      <div class="empty-sub">Ajoutez vos artisans pour les associer<br>à vos postes de travaux.</div>
+    </div>`;
+    return;
+  }
+
+  document.getElementById('mainContent').innerHTML = `
+  <div class="artisan-grid">
+    ${artisans.map(a => {
+      const stats = getArtisanStats(a.id);
+      return `<div class="artisan-card" onclick="editArtisan('${a.id}')">
+        <div class="artisan-badge ch-b">${a.specialite || 'N/A'}</div>
+        <div class="artisan-name">${a.nom}</div>
+        <div class="artisan-spec">${a.specialite || '—'}</div>
+        <div class="artisan-info">
+          ${a.telephone ? '📞 ' + a.telephone + '<br>' : ''}
+          ${a.email ? '✉️ ' + a.email + '<br>' : ''}
+          ${a.siret ? '🏢 SIRET : ' + a.siret + '<br>' : ''}
+          ${a.adresse ? '📍 ' + a.adresse : ''}
+        </div>
+        <div class="artisan-stats">
+          <div class="artisan-stat"><strong>${stats.total}</strong>chantiers</div>
+          <div class="artisan-stat"><strong>${stats.valide}</strong>terminés</div>
+          <div class="artisan-stat"><strong>${fmt(stats.montant)} €</strong>volume</div>
+        </div>
+        ${stats.libelles.length > 0 ? `<div class="text-xs muted mt-8">Travaux : ${stats.libelles.slice(0,3).join(', ')}${stats.libelles.length > 3 ? '...' : ''}</div>` : ''}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function openMoArtisan(artisanId = null) {
+  const a = artisanId ? S.artisans.find(x => x.id === artisanId) : null;
+  const v = k => a ? (a[k] || '') : '';
+  document.getElementById('moArtisanTitle').textContent = a ? 'Modifier artisan' : 'Nouvel artisan';
+  document.getElementById('moArtisanId').value = artisanId || '';
+  document.getElementById('a-nom').value = v('nom');
+  document.getElementById('a-specialite').value = v('specialite');
+  document.getElementById('a-tel').value = v('telephone');
+  document.getElementById('a-email').value = v('email');
+  document.getElementById('a-siret').value = v('siret');
+  document.getElementById('a-adresse').value = v('adresse');
+  document.getElementById('a-notes').value = v('notes');
+  document.getElementById('moArtisan').classList.add('open');
+}
+
+function editArtisan(id) { openMoArtisan(id); }
+
+function saveArtisan() {
+  const id = document.getElementById('moArtisanId').value;
+  const data = {
+    id: id || uid(),
+    nom: document.getElementById('a-nom').value.trim(),
+    specialite: document.getElementById('a-specialite').value,
+    telephone: document.getElementById('a-tel').value.trim(),
+    email: document.getElementById('a-email').value.trim(),
+    siret: document.getElementById('a-siret').value.trim(),
+    adresse: document.getElementById('a-adresse').value.trim(),
+    notes: document.getElementById('a-notes').value.trim(),
+    createdAt: Date.now()
+  };
+  if (!data.nom) return;
+  if (!S.artisans) S.artisans = [];
+  if (id) {
+    const idx = S.artisans.findIndex(a => a.id === id);
+    if (idx !== -1) S.artisans[idx] = data;
+  } else {
+    S.artisans.push(data);
+  }
+  save();
+  document.getElementById('moArtisan').classList.remove('open');
+  renderArtisans();
+}
+
+function deleteArtisan(id) {
+  if (!confirm('Supprimer cet artisan ?')) return;
+  S.artisans = S.artisans.filter(a => a.id !== id);
+  save();
+  document.getElementById('moArtisan').classList.remove('open');
+  renderArtisans();
+}
+
+// ═══════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════
 document.querySelectorAll('.mo').forEach(m => m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); }));
@@ -2105,5 +2243,40 @@ function mobileNavThen(fn) {
   fn();
 }
 </script>
+
+<!-- MODAL ARTISAN -->
+<div class="mo" id="moArtisan">
+  <div class="mo-box" style="width:560px">
+    <div class="mo-title" id="moArtisanTitle">Nouvel artisan</div>
+    <input type="hidden" id="moArtisanId">
+    <div class="fg fg2">
+      <div class="fgrp fg-full"><label>Nom / Raison sociale</label><input id="a-nom" type="text" placeholder="Dupont Bâtiment SARL"></div>
+      <div class="fgrp"><label>Spécialité</label>
+        <select id="a-specialite">
+          <option value="">— Choisir —</option>
+          <option>Maçonnerie</option><option>Charpente</option><option>Toiture</option>
+          <option>Façade</option><option>Isolation</option><option>Menuiseries</option>
+          <option>Plomberie</option><option>Chauffage</option><option>Climatisation</option>
+          <option>Électricité</option><option>Carrelage</option><option>Sol</option>
+          <option>Peinture</option><option>Cuisine</option><option>Salle de bain</option>
+          <option>VRD</option><option>Ascenseur</option><option>Architecte</option>
+          <option>Géomètre</option><option>Bureau d'études</option>
+          <option>Multi-corps d'état</option><option>Autre</option>
+        </select>
+      </div>
+      <div class="fgrp"><label>Téléphone</label><input id="a-tel" type="tel" placeholder="06 12 34 56 78"></div>
+      <div class="fgrp"><label>Email</label><input id="a-email" type="email" placeholder="contact@artisan.fr"></div>
+      <div class="fgrp"><label>N° SIRET</label><input id="a-siret" type="text" placeholder="123 456 789 00010" maxlength="17"></div>
+      <div class="fgrp fg-full"><label>Adresse</label><input id="a-adresse" type="text" placeholder="12 rue du Bâtiment, 75001 Paris"></div>
+      <div class="fgrp fg-full"><label>Notes / Appréciation</label><textarea id="a-notes" rows="2" style="resize:none" placeholder="Fiable, rapide, bon rapport qualité/prix..."></textarea></div>
+    </div>
+    <div class="mo-acts">
+      <button class="btn-sec" style="color:var(--danger);border-color:var(--danger)" onclick="deleteArtisan(document.getElementById('moArtisanId').value)" id="btnDeleteArtisan">Supprimer</button>
+      <button class="btn-sec" onclick="closeMo('moArtisan')">Annuler</button>
+      <button class="btn-pri" onclick="saveArtisan()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

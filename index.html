@@ -9,6 +9,97 @@
 <meta name="theme-color" content="#1A1916">
 <title>Cap Rentier</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
+    from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+  import { getDatabase, ref, set, get, child }
+    from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
+  // ── Config Firebase (projet Cap Rentier) ──
+  const firebaseConfig = {
+    apiKey: "AIzaSyAhGFjoYYTa-87GN0bfz2CwLh2TL_aM5nk",
+    authDomain: "cap-rentier.firebaseapp.com",
+    databaseURL: "https://cap-rentier-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "cap-rentier",
+    storageBucket: "cap-rentier.firebasestorage.app",
+    messagingSenderId: "80338169834",
+    appId: "1:80338169834:web:8fa4dab01242163cbf0c93",
+    measurementId: "G-QZXVWVWNN7"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getDatabase(app);
+  const provider = new GoogleAuthProvider();
+
+  let _unsubscribe = null;
+  let _userId = null;
+
+  // Expose to global scope
+  window._fb = {
+    signIn: async () => {
+      try {
+        const result = await signInWithPopup(auth, provider);
+        return result.user;
+      } catch(e) { console.error('SignIn error:', e); return null; }
+    },
+    signOut: async () => {
+      if (_unsubscribe) { _unsubscribe(); _unsubscribe = null; }
+      await signOut(auth);
+      _userId = null;
+      updateFbUI(null);
+    },
+    saveToCloud: async (data) => {
+      if (!_userId) return false;
+      try {
+        await set(ref(db, 'users/' + _userId), { data: JSON.stringify(data), updatedAt: Date.now() });
+        return true;
+      } catch(e) { console.error('Save error:', e); return false; }
+    },
+    loadFromCloud: async () => {
+      if (!_userId) return null;
+      try {
+        const snap = await get(child(ref(db), 'users/' + _userId));
+        if (snap.exists()) return JSON.parse(snap.val().data);
+        return null;
+      } catch(e) { console.error('Load error:', e); return null; }
+    },
+    isConnected: () => !!_userId
+  };
+
+  onAuthStateChanged(auth, async (user) => {
+    _userId = user ? user.uid : null;
+    updateFbUI(user);
+    if (user) {
+      // Load cloud data on login
+      const cloudData = await window._fb.loadFromCloud();
+      if (cloudData && typeof window.mergeCloudData === 'function') {
+        window.mergeCloudData(cloudData, user);
+      }
+    }
+  });
+
+  function updateFbUI(user) {
+    const btn = document.getElementById('fb-btn');
+    const info = document.getElementById('fb-info');
+    if (!btn) return;
+    if (user) {
+      btn.textContent = '☁️ Connecté';
+      btn.style.color = 'var(--green)';
+      btn.style.borderColor = 'var(--green)';
+      btn.onclick = () => window._fb.signOut();
+      if (info) info.textContent = user.email;
+    } else {
+      btn.textContent = '☁️ Sync Google';
+      btn.style.color = '';
+      btn.style.borderColor = '';
+      btn.onclick = () => window._fb.signIn();
+      if (info) info.textContent = '';
+    }
+  }
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -413,6 +504,9 @@ body.dark .artisan-card.selected{background:#1A2E22}
   </div>
   <div class="sb-list" id="sbList"></div>
   <div class="sb-foot">
+    <button class="btn-sm" id="fb-btn" onclick="window._fb && window._fb.signIn()" style="font-weight:600">☁️ Sync Google</button>
+    <div id="fb-info" class="text-xs muted" style="text-align:center;padding:2px 0"></div>
+    <div id="fb-sync-status" class="text-xs" style="text-align:center;padding:1px 0"></div>
     <button class="btn-sm" style="color:var(--green);border-color:var(--green);font-weight:600" onclick="openImportAnnonce()">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M17 8l-5-5-5 5"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       Importer annonce LBC
@@ -2377,32 +2471,70 @@ function removeLotImmeuble(pfId, idx) {
   save(); renderImmeuble(p);
 }
 
+function updateAcqImm(pid, field, val, isFloat=true) {
+  const p = S.portfolios.find(x=>x.id===pid); if(!p) return;
+  p[field] = isFloat ? (parseFloat(val)||0) : (parseInt(val)||0);
+  save();
+  // Live update displayed values
+  const prix = p.prixAchat || 0;
+  const fraisN = prix * ((p.fraisNotaire||7.5)/100);
+  const aFinancer = prix + fraisN - (p.apport||0);
+  const mens = calcMens(p.empruntMontant||0, p.empruntTaux||3.8, p.empruntDuree||20, p.empruntAssurance||0.12);
+  const totalInt = mens * (p.empruntDuree||20) * 12 - (p.empruntMontant||0);
+  const el_fn = document.getElementById('acq-frais-n'); if(el_fn) el_fn.textContent = fmt(fraisN)+' €';
+  const el_ti = document.getElementById('acq-total-inv'); if(el_ti) el_ti.textContent = fmt(prix+fraisN)+' €';
+  const el_af = document.getElementById('acq-a-financer'); if(el_af) el_af.textContent = fmt(aFinancer)+' €';
+  const el_mens = document.getElementById('acq-mensualite'); if(el_mens) el_mens.textContent = fmt(mens)+' €/mois';
+  const el_int = document.getElementById('acq-interets'); if(el_int) el_int.textContent = fmt(Math.max(0,totalInt))+' €';
+  const el_emp = document.getElementById('acq-emprunt-auto');
+  if(el_emp && field !== 'empruntMontant') el_emp.value = Math.round(aFinancer);
+}
+
 function renderAcquisitionImmeuble(p) {
   const pid = p.id;
   const prix = p.prixAchat || 0;
-  const fraisN = prix * ((p.fraisNotaire || 7.5) / 100);
+  const fraisN = prix * ((p.fraisNotaire||7.5)/100);
+  const apport = p.apport || 0;
+  const aFinancer = prix + fraisN - apport;
   const mens = calcMens(p.empruntMontant||0, p.empruntTaux||3.8, p.empruntDuree||20, p.empruntAssurance||0.12);
+  const totalInt = Math.max(0, mens*(p.empruntDuree||20)*12-(p.empruntMontant||0));
+  const apportPct = (prix+fraisN) > 0 ? ((apport/(prix+fraisN))*100).toFixed(1) : 0;
+
   document.getElementById('mainContent').innerHTML = `
   <div class="fs"><div class="fs-title">🏠 Prix d'acquisition</div>
     <div class="fg fg2">
       <div class="fgrp"><label>Prix d'achat global (€)</label>
-        <input type="number" value="${prix}" onchange="S.portfolios.find(x=>x.id==='${pid}').prixAchat=parseFloat(this.value)||0;save()"></div>
-      <div class="fgrp"><label>Frais notaire (%) <span class="calc-val">${fmt(fraisN)} €</span></label>
-        <input type="number" step="0.1" value="${p.fraisNotaire||7.5}" onchange="S.portfolios.find(x=>x.id==='${pid}').fraisNotaire=parseFloat(this.value)||7.5;save()"></div>
-      <div class="mc mc-hl"><div class="mc-lbl">Total investi</div><div class="mc-val">${fmt(prix+fraisN)} €</div></div>
+        <input type="number" value="${prix}" onchange="updateAcqImm('${pid}','prixAchat',this.value)"></div>
+      <div class="fgrp"><label>Frais de notaire (%) <span class="calc-val" id="acq-frais-n">${fmt(fraisN)} €</span></label>
+        <input type="number" step="0.1" value="${p.fraisNotaire||7.5}" onchange="updateAcqImm('${pid}','fraisNotaire',this.value)"></div>
+      <div class="fgrp"><label>Apport personnel (€) <span class="calc-val">${apportPct}%</span></label>
+        <input type="number" value="${apport}" onchange="updateAcqImm('${pid}','apport',this.value)"></div>
+      <div class="mc mc-hl">
+        <div class="mc-lbl">Total investi</div>
+        <div class="mc-val" id="acq-total-inv">${fmt(prix+fraisN)} €</div>
+        <div class="mc-sub">À financer : <span id="acq-a-financer">${fmt(aFinancer)} €</span></div>
+      </div>
     </div>
   </div>
   <div class="fs"><div class="fs-title">🏦 Emprunt</div>
     <div class="fg fg2">
-      <div class="fgrp"><label>Montant emprunté (€)</label>
-        <input type="number" value="${p.empruntMontant||Math.round(prix*0.85)}" onchange="S.portfolios.find(x=>x.id==='${pid}').empruntMontant=parseFloat(this.value)||0;save()"></div>
+      <div class="fgrp"><label>Montant emprunté (€) <span class="calc-val">Auto depuis apport</span></label>
+        <input id="acq-emprunt-auto" type="number" value="${p.empruntMontant||Math.round(aFinancer)}"
+          onchange="updateAcqImm('${pid}','empruntMontant',this.value)"></div>
       <div class="fgrp"><label>Taux nominal (%)</label>
-        <input type="number" step="0.01" value="${p.empruntTaux||3.8}" onchange="S.portfolios.find(x=>x.id==='${pid}').empruntTaux=parseFloat(this.value)||3.8;save()"></div>
+        <input type="number" step="0.01" value="${p.empruntTaux||3.8}"
+          onchange="updateAcqImm('${pid}','empruntTaux',this.value)"></div>
       <div class="fgrp"><label>Durée (ans)</label>
-        <input type="number" value="${p.empruntDuree||20}" onchange="S.portfolios.find(x=>x.id==='${pid}').empruntDuree=parseInt(this.value)||20;save()"></div>
+        <input type="number" value="${p.empruntDuree||20}"
+          onchange="updateAcqImm('${pid}','empruntDuree',this.value,false)"></div>
       <div class="fgrp"><label>Assurance (%/an)</label>
-        <input type="number" step="0.01" value="${p.empruntAssurance||0.12}" onchange="S.portfolios.find(x=>x.id==='${pid}').empruntAssurance=parseFloat(this.value)||0.12;save()"></div>
-      <div class="mc mc-hl"><div class="mc-lbl">Mensualité totale</div><div class="mc-val">${fmt(mens)} €/mois</div></div>
+        <input type="number" step="0.01" value="${p.empruntAssurance||0.12}"
+          onchange="updateAcqImm('${pid}','empruntAssurance',this.value)"></div>
+      <div class="mc mc-hl">
+        <div class="mc-lbl">Mensualité totale</div>
+        <div class="mc-val" id="acq-mensualite">${fmt(mens)} €/mois</div>
+        <div class="mc-sub">Dont intérêts : <span id="acq-interets">${fmt(totalInt)} €</span> total</div>
+      </div>
     </div>
   </div>`;
 }
@@ -2524,20 +2656,26 @@ function unvalidateTwImm(prefix, i) {
 // We use a flag to know if we're in immeuble mode
 function twTableImm(rows, prefix) {
   if (!rows || rows.length === 0) return '<div class="muted text-sm" style="padding:8px 0">Aucun poste.</div>';
-  const artisanOpts = (S.artisans||[]).map(a => '<option value="'+a.id+'">'+a.nom+' ('+a.specialite+')</option>').join('');
-  return '<div class="tw-hdr" style="display:grid;grid-template-columns:1fr 110px 85px 85px 65px 95px 68px 28px;gap:6px;padding:4px 0 6px;border-bottom:1px solid var(--border2);font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--t3)"><span>Poste</span><span>Catégorie</span><span>Estimé (€)</span><span>Réel (€)</span><span>Durée</span><span>Statut</span><span></span><span></span></div>' +
-  rows.map((t, i) => `<div style="display:grid;grid-template-columns:1fr 110px 85px 85px 65px 95px 68px 28px;gap:6px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);${t.valide?'opacity:.8;background:var(--s2)':''}">
+  const artisanOpts = (S.artisans||[]).map(a => '<option value="'+a.id+'" '+(a.id===''?'selected':'')+'>'+a.nom+' ('+a.specialite+')</option>').join('');
+  return '<div class="tw-hdr" style="display:grid;grid-template-columns:1fr 110px 85px 85px 65px 130px 95px 68px 28px;gap:6px;padding:4px 0 6px;border-bottom:1px solid var(--border2);font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--t3)"><span>Poste</span><span>Catégorie</span><span>Estimé (€)</span><span>Réel (€)</span><span>Durée</span><span>Artisan</span><span>Statut</span><span></span><span></span></div>' +
+  rows.map((t, i) => {
+    const artisan = t.artisanId ? (S.artisans||[]).find(a => a.id === t.artisanId) : null;
+    return `<div style="display:grid;grid-template-columns:1fr 110px 85px 85px 65px 130px 95px 68px 28px;gap:6px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);${t.valide?'opacity:.8;background:var(--s2)':''}">
     <input type="text" value="${t.nom||''}" onchange="updateTwImm('${prefix}',${i},'nom',this.value,false)" placeholder="Description">
     <select onchange="updateTwImm('${prefix}',${i},'cat',this.value,false)">${TW_CATS.map(c=>`<option ${t.cat===c?'selected':''}>${c}</option>`).join('')}</select>
     <input type="number" value="${t.estime||''}" onchange="updateTwImm('${prefix}',${i},'estime',this.value)" placeholder="0">
     <input type="number" value="${t.reel||''}" onchange="updateTwImm('${prefix}',${i},'reel',this.value)" placeholder="0">
     <input type="number" value="${t.duree||''}" onchange="updateTwImm('${prefix}',${i},'duree',this.value)" placeholder="0">
+    <select onchange="updateTwImm('${prefix}',${i},'artisanId',this.value,false)">
+      <option value="">— Artisan —</option>${artisanOpts}
+    </select>
     <select onchange="updateTwImm('${prefix}',${i},'statut',this.value,false)">${TW_STATUTS.map(s=>`<option ${t.statut===s?'selected':''}>${s}</option>`).join('')}</select>
     ${t.valide
       ? `<button class="btn-validate" style="background:var(--t3);font-size:10px" onclick="unvalidateTwImm('${prefix}',${i})">✓ OK</button>`
       : `<button class="btn-validate" onclick="validateTwImm('${prefix}',${i})">Valider</button>`}
     <button class="btn-rm" onclick="removeTwImm('${prefix}',${i})">×</button>
-  </div>`).join('');
+  </div>`;
+  }).join('');
 }
 
 // ─────────────────────────────────────────────
@@ -3465,6 +3603,65 @@ function selImmeuble(pid) {
   S.activePid = pid; S.activeBid = null; S.activeTab = 'synthese';
   save(); render();
 }
+
+// ═══════════════════════════════════════════
+// FIREBASE SYNC
+// ═══════════════════════════════════════════
+let _lastCloudSave = 0;
+let _cloudSaveTimer = null;
+
+// Override save() to also sync to cloud (debounced 2s)
+const _localSave = save;
+window.saveWithCloud = function() {
+  _localSave();
+  if (window._fb && window._fb.isConnected()) {
+    clearTimeout(_cloudSaveTimer);
+    _cloudSaveTimer = setTimeout(async () => {
+      const ok = await window._fb.saveToCloud(S);
+      const el = document.getElementById('fb-sync-status');
+      if (el) {
+        el.textContent = ok ? '✓ Synchro' : '⚠ Erreur sync';
+        el.style.color = ok ? 'var(--green)' : 'var(--danger)';
+        setTimeout(() => { if(el) el.textContent = ''; }, 3000);
+      }
+    }, 2000);
+  }
+};
+
+// Merge cloud data with local (cloud wins if more recent)
+window.mergeCloudData = function(cloudData, user) {
+  if (!cloudData) return;
+  const localPortfolios = S.portfolios ? S.portfolios.length : 0;
+  const cloudPortfolios = cloudData.portfolios ? cloudData.portfolios.length : 0;
+
+  // Show merge dialog if both have data
+  if (localPortfolios > 0 && cloudPortfolios > 0 && localPortfolios !== cloudPortfolios) {
+    const choice = confirm(
+      'Données trouvées dans le cloud (' + cloudPortfolios + ' immeuble(s)).\n' +
+      'Données locales (' + localPortfolios + ' immeuble(s)).\n\n' +
+      'Cliquez OK pour utiliser les données cloud, Annuler pour garder les données locales.'
+    );
+    if (!choice) {
+      // Push local to cloud
+      window._fb.saveToCloud(S);
+      return;
+    }
+  }
+
+  // Use cloud data
+  S = {...S, ...cloudData};
+  save();
+  render();
+
+  // Show confirmation
+  const banner = document.createElement('div');
+  banner.className = 'alert a-ok';
+  banner.style.cssText = 'position:fixed;top:60px;right:20px;z-index:999;min-width:280px;box-shadow:var(--shmd)';
+  banner.innerHTML = '☁️ Connecté : ' + user.email + '<br><span class="text-xs">Données synchronisées depuis le cloud.</span>';
+  document.body.appendChild(banner);
+  setTimeout(() => banner.remove(), 4000);
+};
+
 
 // ═══════════════════════════════════════════
 // MOBILE SIDEBAR

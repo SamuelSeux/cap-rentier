@@ -39,8 +39,10 @@
 
   // Expose to global scope
   window._fb = {
-    signIn: async () => {
+    signIn: async (forceSelect = false) => {
       try {
+        if (forceSelect) provider.setCustomParameters({ prompt: 'select_account' });
+        else provider.setCustomParameters({});
         const result = await signInWithPopup(auth, provider);
         return result.user;
       } catch(e) { console.error('SignIn error:', e); return null; }
@@ -49,7 +51,17 @@
       if (_unsubscribe) { _unsubscribe(); _unsubscribe = null; }
       await signOut(auth);
       _userId = null;
+      window._fbUser = null;
       updateFbUI(null);
+    },
+    switchAccount: async () => {
+      if (_unsubscribe) { _unsubscribe(); _unsubscribe = null; }
+      await signOut(auth);
+      _userId = null;
+      window._fbUser = null;
+      updateFbUI(null);
+      // Force account selector
+      await window._fb.signIn(true);
     },
     saveToCloud: async (data) => {
       if (!_userId) return false;
@@ -110,7 +122,16 @@
       btn.textContent = '☁️ ' + (user.displayName || user.email.split('@')[0]);
       btn.style.color = 'var(--green)';
       btn.style.borderColor = 'var(--green)';
-      btn.onclick = () => window._fb.signOut();
+      btn.title = 'Cliquer pour se déconnecter';
+      btn.onclick = () => {
+        const choice = confirm(
+          'Compte : ' + user.email + '\n\n' +
+          'OK = Se déconnecter\n' +
+          'Annuler = Changer de compte'
+        );
+        if (choice) window._fb.signOut();
+        else window._fb.switchAccount();
+      };
       if (info) info.textContent = user.email;
       if (pullBtn) pullBtn.style.display = 'flex';
     } else {

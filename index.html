@@ -84,19 +84,22 @@
   function updateFbUI(user) {
     const btn = document.getElementById('fb-btn');
     const info = document.getElementById('fb-info');
+    const pullBtn = document.getElementById('fb-pull-btn');
     if (!btn) return;
     if (user) {
-      btn.textContent = '☁️ Connecté';
+      btn.textContent = '☁️ ' + (user.displayName || user.email.split('@')[0]);
       btn.style.color = 'var(--green)';
       btn.style.borderColor = 'var(--green)';
       btn.onclick = () => window._fb.signOut();
       if (info) info.textContent = user.email;
+      if (pullBtn) pullBtn.style.display = 'flex';
     } else {
       btn.textContent = '☁️ Sync Google';
       btn.style.color = '';
       btn.style.borderColor = '';
       btn.onclick = () => window._fb.signIn();
       if (info) info.textContent = '';
+      if (pullBtn) pullBtn.style.display = 'none';
     }
   }
 </script>
@@ -505,6 +508,7 @@ body.dark .artisan-card.selected{background:#1A2E22}
   <div class="sb-list" id="sbList"></div>
   <div class="sb-foot">
     <button class="btn-sm" id="fb-btn" onclick="window._fb && window._fb.signIn()" style="font-weight:600">☁️ Sync Google</button>
+    <button class="btn-sm" id="fb-pull-btn" onclick="forcePullCloud()" style="display:none;font-size:11px">⬇️ Récupérer données cloud</button>
     <div id="fb-info" class="text-xs muted" style="text-align:center;padding:2px 0"></div>
     <div id="fb-sync-status" class="text-xs" style="text-align:center;padding:1px 0"></div>
     <button class="btn-sm" style="color:var(--green);border-color:var(--green);font-weight:600" onclick="openImportAnnonce()">
@@ -624,7 +628,22 @@ let S = {
 // ═══════════════════════════════════════════
 // PERSIST
 // ═══════════════════════════════════════════
-const save = () => localStorage.setItem('cap_rentier_v2', JSON.stringify(S));
+const save = () => {
+  localStorage.setItem('cap_rentier_v2', JSON.stringify(S));
+  // Auto-sync to cloud if connected (debounced)
+  if (window._fb && window._fb.isConnected()) {
+    clearTimeout(window._cloudSaveTimer);
+    window._cloudSaveTimer = setTimeout(async () => {
+      const ok = await window._fb.saveToCloud(S);
+      const el = document.getElementById('fb-sync-status');
+      if (el) {
+        el.textContent = ok ? '✓ Synchro cloud' : '⚠ Erreur sync';
+        el.style.color = ok ? 'var(--green)' : 'var(--danger)';
+        setTimeout(() => { if(el) el.textContent = ''; }, 3000);
+      }
+    }, 2000);
+  }
+};
 const load = () => {
   const d = localStorage.getItem('cap_rentier_v2');
   if (!d) return;
@@ -3607,6 +3626,45 @@ function selImmeuble(pid) {
 // ═══════════════════════════════════════════
 // FIREBASE SYNC
 // ═══════════════════════════════════════════
+async function forcePullCloud() {
+  if (!window._fb || !window._fb.isConnected()) {
+    alert('Connectez-vous d\'abord avec Google.');
+    return;
+  }
+  const el = document.getElementById('fb-sync-status');
+  if (el) { el.textContent = '⟳ Récupération...'; el.style.color = 'var(--gold)'; }
+
+  const cloudData = await window._fb.loadFromCloud();
+  if (!cloudData) {
+    if (el) { el.textContent = 'Aucune donnée cloud'; el.style.color = 'var(--t3)'; }
+    setTimeout(() => { if(el) el.textContent = ''; }, 3000);
+    return;
+  }
+
+  const localCount = S.portfolios ? S.portfolios.length : 0;
+  const cloudCount = cloudData.portfolios ? cloudData.portfolios.length : 0;
+
+  if (localCount > 0 && cloudCount > 0) {
+    const choice = confirm(
+      'Données cloud : ' + cloudCount + ' immeuble(s)\n' +
+      'Données locales : ' + localCount + ' immeuble(s)\n\n' +
+      'OK = remplacer par les données cloud\n' +
+      'Annuler = garder les données locales (et les pousser vers le cloud)'
+    );
+    if (!choice) {
+      await window._fb.saveToCloud(S);
+      if (el) { el.textContent = '✓ Données locales poussées'; el.style.color = 'var(--green)'; }
+      setTimeout(() => { if(el) el.textContent = ''; }, 3000);
+      return;
+    }
+  }
+
+  S = {...S, ...cloudData};
+  save();
+  render();
+  if (el) { el.textContent = '✓ Données cloud chargées'; el.style.color = 'var(--green)'; }
+  setTimeout(() => { if(el) el.textContent = ''; }, 3000);
+}
 let _lastCloudSave = 0;
 let _cloudSaveTimer = null;
 

@@ -73,10 +73,20 @@
     _userId = user ? user.uid : null;
     updateFbUI(user);
     if (user) {
-      // Load cloud data on login
+      // Show loading indicator
+      const el = document.getElementById('fb-sync-status');
+      if (el) { el.textContent = '⟳ Chargement cloud...'; el.style.color = 'var(--gold)'; }
+      // Load cloud data on login/page load
       const cloudData = await window._fb.loadFromCloud();
       if (cloudData && typeof window.mergeCloudData === 'function') {
         window.mergeCloudData(cloudData, user);
+      } else if (el) {
+        // No cloud data yet - push local data to cloud
+        el.textContent = 'Cloud vide — envoi données locales...';
+        await window._fb.saveToCloud(window.S);
+        el.textContent = '✓ Données envoyées au cloud';
+        el.style.color = 'var(--green)';
+        setTimeout(() => { if(el) el.textContent = ''; }, 3000);
       }
     }
   });
@@ -3166,6 +3176,8 @@ document.querySelectorAll('.mo').forEach(m => m.addEventListener('click', e => {
 load();
 document.body.classList.toggle('dark', S.dark);
 render();
+// Apply Firebase UI state after initial render (in case user is already logged in)
+setTimeout(() => { if (window._applyFbUI) window._applyFbUI(); }, 500);
 
 // ═══════════════════════════════════════════
 // IMPORT ANNONCE
@@ -3654,9 +3666,15 @@ function selImmeuble(pid) {
 // FIREBASE SYNC
 // ═══════════════════════════════════════════
 async function forcePullCloud() {
-  if (!window._fb || !window._fb.isConnected()) {
-    alert('Connectez-vous d\'abord avec Google.');
+  // Wait up to 3s for Firebase to initialize if needed
+  if (!window._fb) {
+    alert('Firebase non disponible. Rechargez la page.');
     return;
+  }
+  if (!window._fbUser) {
+    // Try to sign in
+    await window._fb.signIn();
+    if (!window._fbUser) return;
   }
   const el = document.getElementById('fb-sync-status');
   if (el) { el.textContent = '⟳ Récupération...'; el.style.color = 'var(--gold)'; }
@@ -3719,15 +3737,30 @@ window.mergeCloudData = function(cloudData, user) {
   const localPortfolios = S.portfolios ? S.portfolios.length : 0;
   const cloudPortfolios = cloudData.portfolios ? cloudData.portfolios.length : 0;
 
-  // Show merge dialog if both have data
+  // If local is empty, always use cloud silently
+  if (localPortfolios === 0 && cloudPortfolios > 0) {
+    S = {...S, ...cloudData};
+    localStorage.setItem('cap_rentier_v2', JSON.stringify(S));
+    render();
+    const el = document.getElementById('fb-sync-status');
+    if (el) { el.textContent = '✓ ' + cloudPortfolios + ' immeuble(s) récupéré(s)'; el.style.color = 'var(--green)'; setTimeout(() => { if(el) el.textContent=''; }, 4000); }
+    return;
+  }
+
+  // If cloud is empty, push local silently
+  if (cloudPortfolios === 0 && localPortfolios > 0) {
+    window._fb.saveToCloud(S);
+    return;
+  }
+
+  // Both have data - ask user
   if (localPortfolios > 0 && cloudPortfolios > 0 && localPortfolios !== cloudPortfolios) {
     const choice = confirm(
-      'Données trouvées dans le cloud (' + cloudPortfolios + ' immeuble(s)).\n' +
-      'Données locales (' + localPortfolios + ' immeuble(s)).\n\n' +
-      'Cliquez OK pour utiliser les données cloud, Annuler pour garder les données locales.'
+      'Données cloud : ' + cloudPortfolios + ' immeuble(s)\n' +
+      'Données locales : ' + localPortfolios + ' immeuble(s)\n\n' +
+      'OK = utiliser les données cloud\nAnnuler = garder les données locales'
     );
     if (!choice) {
-      // Push local to cloud
       window._fb.saveToCloud(S);
       return;
     }
@@ -3735,7 +3768,7 @@ window.mergeCloudData = function(cloudData, user) {
 
   // Use cloud data
   S = {...S, ...cloudData};
-  save();
+  localStorage.setItem('cap_rentier_v2', JSON.stringify(S));
   render();
 
   // Show confirmation

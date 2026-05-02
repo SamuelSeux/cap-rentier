@@ -81,11 +81,21 @@
     }
   });
 
+  // Store user globally so renderSidebar can always apply correct state
+  window._fbUser = null;
+
   function updateFbUI(user) {
+    window._fbUser = user;
+    applyFbUI();
+  }
+
+  function applyFbUI() {
+    const user = window._fbUser;
     const btn = document.getElementById('fb-btn');
     const info = document.getElementById('fb-info');
     const pullBtn = document.getElementById('fb-pull-btn');
-    if (!btn) return;
+    const status = document.getElementById('fb-sync-status');
+    if (!btn) return; // DOM not ready yet, will be called again after render
     if (user) {
       btn.textContent = '☁️ ' + (user.displayName || user.email.split('@')[0]);
       btn.style.color = 'var(--green)';
@@ -100,8 +110,20 @@
       btn.onclick = () => window._fb.signIn();
       if (info) info.textContent = '';
       if (pullBtn) pullBtn.style.display = 'none';
+      const floatBtn = document.getElementById('fb-float-status');
+      if (floatBtn) floatBtn.style.display = 'none';
     }
   }
+
+  function applyFbUIWithFloat() {
+    applyFbUI();
+    const user = window._fbUser;
+    const floatBtn = document.getElementById('fb-float-status');
+    if (floatBtn) floatBtn.style.display = user ? 'block' : 'none';
+  }
+
+  // Expose applyFbUI so it can be called after renderSidebar
+  window._applyFbUI = applyFbUIWithFloat;
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -534,7 +556,10 @@ body.dark .artisan-card.selected{background:#1A2E22}
 
 <!-- MAIN -->
 <main id="main">
-  <div class="topbar">
+  <div id="fb-float-status" style="display:none;position:fixed;bottom:20px;right:20px;z-index:999;background:var(--surface);border:1px solid var(--green);border-radius:var(--rsm);padding:10px 16px;font-size:12px;font-weight:600;color:var(--green);box-shadow:var(--shmd);cursor:pointer" onclick="forcePullCloud()">
+  ⬇️ Récupérer données cloud
+</div>
+<div class="topbar">
     <div class="tb-title" id="tbTitle">Tableau de bord</div>
     <div class="tb-actions" id="tbActions"></div>
   </div>
@@ -1073,6 +1098,8 @@ function renderSidebar() {
     <div class="nav-item ${S.activeTab==='compare'?'active':''}" onclick="closeSidebar();showCompare()">⚖️ Comparateur</div>
   </div>` + html;
   el.innerHTML = html;
+  // Reapply Firebase UI state after DOM rebuild
+  if (window._applyFbUI) setTimeout(window._applyFbUI, 0);
 }
 
 // ═══════════════════════════════════════════

@@ -6,8 +6,17 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Cap Rentier">
-<meta name="theme-color" content="#1A1916">
-<title>Cap Rentier</title>
+<meta name="theme-color" content="#080c18">
+<title>Cap Rentier — Calcul Rentabilité Immobilière</title>
+<meta name="description" content="Simulez la rentabilité de vos investissements immobiliers. Rendement brut, net, cashflow, fiscalité LMNP, SCI." />
+<link rel="icon" type="image/x-icon" href="/cap-rentier/assets/favicon.ico" />
+<link rel="icon" type="image/png" sizes="32x32" href="/cap-rentier/assets/favicon-32x32.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="/cap-rentier/assets/apple-touch-icon.png" />
+<link rel="manifest" href="/cap-rentier/manifest.json" />
+<meta property="og:title" content="Cap Rentier — Calcul Rentabilité Immobilière" />
+<meta property="og:description" content="Simulez la rentabilité de vos investissements immobiliers." />
+<meta property="og:image" content="https://samuelseux.github.io/cap-rentier/assets/cap_rentier_dark_1200x600.png" />
+<meta property="og:url" content="https://samuelseux.github.io/cap-rentier/" />
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <!-- Firebase -->
 <script type="module">
@@ -549,7 +558,9 @@ body.dark .artisan-card.selected{background:#1A2E22}
 <nav id="sb">
   <button id="sb-close" onclick="closeSidebar()" aria-label="Fermer">✕</button>
   <div class="sb-head">
-    <div class="logo">Cap <em>Rentier</em></div>
+    <a href="/" style="display:flex;align-items:center;text-decoration:none">
+  <img src="/cap-rentier/assets/cap_rentier_light.svg" alt="Cap Rentier" height="32" style="width:auto">
+</a>
     <button class="dark-toggle" onclick="toggleDark()" id="darkBtn">🌙 Sombre</button>
   </div>
   <div class="sb-actions">
